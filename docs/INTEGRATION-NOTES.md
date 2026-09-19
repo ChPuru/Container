@@ -96,7 +96,15 @@ correct behaviour — a container that runs without its memory cap is better tha
 to start — but the engine must propagate those warnings into the API response and the CLI, or
 the user silently gets unlimited containers. Owner: `internal/engine` + `internal/api`.
 
-## 5. A bridge with no endpoints reports `NO-CARRIER`
+## 5. `hull doctor --json` buries its answer under the kernel config
+
+The JSON report embeds all 1499 `CONFIG_*` options from `/proc/config.gz`, so the fields anyone
+actually wants are thousands of lines down. The data is genuinely useful in a bug report, but it
+should not be the default: gate `Report.Kernel.Config` behind a `--verbose` flag, or move it to
+a sibling `hull doctor --kconfig`. Owner: `internal/cli`, with a marshalling tweak in
+`internal/hostinfo`.
+
+## 6. A bridge with no endpoints reports `NO-CARRIER`
 
 `hull0` shows operstate `DOWN` with the `UP` flag set until the first veth is attached. That is
 normal Linux behaviour, but `hull doctor` and the TUI must not report it as a fault.
