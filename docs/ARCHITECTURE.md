@@ -135,6 +135,25 @@ crun run                            -> "3.20.10 from the real pulled image"
 That last line is Alpine 3.20.10's own `/etc/alpine-release`, read from inside the container.
 Registry → content store → layer applier → snapshotter → runtime all work together.
 
+### The layer applier holds against escape attempts (2026-09-19)
+
+Unpacking an attacker-supplied tar is the CVE surface of any container engine, so
+`internal/layer` was attacked independently of its own test suite. Six shapes, each trying to
+write a canary file outside the destination:
+
+| Attack | Result |
+|---|---|
+| `../../../..` traversal to an absolute host path | refused — *path escapes destination* |
+| entry named with an absolute host path | refused — *absolute path* |
+| symlink to `/`, then a write through it | refused at symlink resolution |
+| symlink to a host directory, then a sibling write | refused — *component escapes* |
+| hardlink whose target is outside the root | refused — *hardlink target escapes* |
+| nested directory symlink (`a/b -> ../../../..`) then a deep write | refused at resolution |
+
+No escapes. Not one byte landed outside the destination, and the canary was unmodified in every
+case. The defence is `openat2` with `RESOLVE_IN_ROOT|RESOLVE_NO_MAGICLINKS` where the kernel has
+it, with an fd-relative `O_NOFOLLOW` walk as the fallback — never `filepath.Join` plus `os.Open`.
+
 ### Port publishing, proven the WSL way (2026-09-19)
 
 The riskiest WSL assumption in the whole design — that a published port needs a *real listening
