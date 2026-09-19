@@ -135,6 +135,35 @@ crun run                            -> "3.20.10 from the real pulled image"
 That last line is Alpine 3.20.10's own `/etc/alpine-release`, read from inside the container.
 Registry → content store → layer applier → snapshotter → runtime all work together.
 
+### The engine, driven end to end (2026-09-19)
+
+`internal/engine` was driven directly, the way the CLI and the Docker API will:
+
+```
+Pull    alpine:3.20 -> bf8527eb54c3, 1 layer, 3.46 MiB
+Create  id=dc8c15d643df name=enginetest state=created
+Start
+Wait    exit code 7          (the container's own exit code, propagated)
+Logs    | hull engine: 3.20.10
+        | pid=1 host=dc8c15d643df
+        | line1 line2 line3   (through the json-file driver)
+List    dc8c15d643df enginetest exited exit=7
+Remove  0 containers left
+```
+
+Identical results through both drivers — hull's native runtime and `crun` — so the runtime
+abstraction is genuinely pluggable rather than nominally so.
+
+Networking, the path a daily driver actually lives on:
+
+```
+network=bridge ip=10.66.7.2 gw=10.66.7.1 mac=36:cf:9d:90:3f:e3
+published 80/tcp -> 0.0.0.0:18123
+GET 127.0.0.1:18123 -> "hull-served"            from the Windows-visible host side
+getent hosts netsrv -> 10.66.7.2 netsrv netsrv  hull's own DNS server
+wget http://netsrv/ -> hull-served              container to container by name
+```
+
 ### The layer applier holds against escape attempts (2026-09-19)
 
 Unpacking an attacker-supplied tar is the CVE surface of any container engine, so

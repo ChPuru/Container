@@ -836,7 +836,14 @@ type testEngine struct {
 // subsystem faked. It needs no root privileges and touches no kernel state.
 func newTestEngine(t *testing.T) *testEngine {
 	t.Helper()
-	root := t.TempDir()
+	return newTestEngineAt(t, t.TempDir())
+}
+
+// newTestEngineAt builds an engine over an existing data root, which is how a
+// test simulates a daemon restart: the same directory, a fresh process, fresh
+// in-memory state.
+func newTestEngineAt(t *testing.T, root string) *testEngine {
+	t.Helper()
 
 	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
 	st, err := state.Open(root)

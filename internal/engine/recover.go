@@ -40,6 +40,23 @@ func (e *Engine) recover(ctx context.Context) error {
 			"container networking is not available: "+err.Error())
 	}
 
+	// The pre-recovery view is taken first, because state.Recover flips a
+	// container whose process is gone to "exited" with a generic code. Only
+	// this snapshot still records that the container *claimed* to be running,
+	// which is what says its ports and endpoints need releasing and that its
+	// real exit status should be read back from its shim.
+	before, err := e.state.ListContainers()
+	if err != nil {
+		return fmt.Errorf("engine: list containers during recovery: %w", err)
+	}
+	claimedRunning := make(map[string]bool, len(before))
+	for _, c := range before {
+		switch c.State {
+		case types.StateRunning, types.StatePaused, types.StateRestarting:
+			claimedRunning[c.ID] = true
+		}
+	}
+
 	actions, err := e.state.Recover(ctx, e.processAlive)
 	if err != nil {
 		return fmt.Errorf("engine: recover the state store: %w", err)
@@ -48,15 +65,15 @@ func (e *Engine) recover(ctx context.Context) error {
 		e.log.Info("hull: recovered a container", "action", a.String())
 	}
 
-	ctrs, err := e.state.ListContainers()
-	if err != nil {
-		return fmt.Errorf("engine: list containers during recovery: %w", err)
-	}
-	for _, c := range ctrs {
+	for _, stale := range before {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		e.recoverContainer(ctx, c)
+		c, lerr := e.lookup(stale.ID)
+		if lerr != nil {
+			continue
+		}
+		e.recoverContainer(ctx, c, claimedRunning[c.ID])
 	}
 	return nil
 }
@@ -69,7 +86,12 @@ func (e *Engine) processAlive(pid int, startedAt time.Time) bool {
 }
 
 // recoverContainer reconciles one container.
-func (e *Engine) recoverContainer(ctx context.Context, c *types.Container) {
+//
+// wasRunning is the state the record claimed before state.Recover had its say,
+// because by the time this runs a vanished container has already been flipped
+// to "exited" with a generic code and would otherwise look like one that was
+// stopped cleanly.
+func (e *Engine) recoverContainer(ctx context.Context, c *types.Container, wasRunning bool) {
 	dir := e.containerDir(c.ID)
 	// Read the on-disk marker before taking the lock: manuallyStopped takes
 	// the same RWMutex for reading, and a Go RWMutex is not re-entrant.
@@ -90,7 +112,7 @@ func (e *Engine) recoverContainer(ctx context.Context, c *types.Container) {
 	}
 
 	// No live shim. Whatever the record said, this container is not running.
-	if c.State == types.StateRunning || c.State == types.StatePaused || c.State == types.StateRestarting {
+	if wasRunning {
 		code, oom, reason := e.exitStatusFor(dir)
 		if err := e.markExited(c.ID, code, reason, oom); err != nil {
 			e.log.Warn("hull: could not record a vanished container's exit",
