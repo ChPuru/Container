@@ -5,3 +5,5 @@
 *.tgz
 /test/tmp/
 /.scratch-doctor/
+/.scratch-pull/
+/.scratch-chain/

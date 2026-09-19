@@ -1,0 +1,11 @@
+# Shell scripts and anything the Linux side executes must stay LF, or bash inside
+# WSL fails with a confusing "bad interpreter: no such file or directory".
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.sh text eol=lf
+distro/rootfs/** text eol=lf
+scripts/*.sh text eol=lf
+*.go text eol=lf
+*.png binary
+*.tar binary
+*.gz binary

@@ -117,6 +117,24 @@ Each package owns one subsystem. Packages may only import packages *below* them.
   **long-lived `wsl.exe --exec` stdio relay** (with `WSL_UTF8=1`), with an optional
   TCP-on-loopback transport guarded by a shared secret.
 
+### The image stack, proven end to end (2026-09-19)
+
+Before the engine existed, the five packages that make up the image path were chained together
+by hand against the real Docker Hub and the real kernel:
+
+```
+reference.Parse("alpine:3.20")      -> docker.io/library/alpine:3.20
+registry.Pull                       -> 401, token dance, OCI index, linux/amd64 manifest,
+                                       config + layer blobs digest-verified into the CAS
+snapshot.Detect                     -> overlay supported, redirect/metacopy/index all off
+snapshot.Unpack                     -> layer extracted, ChainID committed
+snapshot.Mount                      -> overlayfs merged rootfs, 17 entries at /
+crun run                            -> "3.20.10 from the real pulled image"
+```
+
+That last line is Alpine 3.20.10's own `/etc/alpine-release`, read from inside the container.
+Registry → content store → layer applier → snapshotter → runtime all work together.
+
 ### Validated on this host (2026-09-19)
 
 The three load-bearing kernel paths were exercised directly on WSL 2.4.13 / kernel 5.15.167.4
