@@ -113,7 +113,48 @@ correct behaviour — a container that runs without its memory cap is better tha
 to start — but the engine must propagate those warnings into the API response and the CLI, or
 the user silently gets unlimited containers. Owner: `internal/engine` + `internal/api`.
 
-## 5. `hull doctor --json` buries its answer under the kernel config
+## 5. The differentiators are built but not yet wired — OPEN
+
+Each differentiator is a self-contained package with its own tests, deliberately not reaching
+into the engine. That leaves a short, specific wiring list, recorded here so it does not get
+lost between phases.
+
+**`internal/idle` (scale-to-zero)** — the engine already has every field the `idle.Source`
+interface wants:
+
+| `idle.Snapshot` field | engine source |
+|---|---|
+| `Attached` | `ctrState.attachments` |
+| `CGroupPath` | `e.cgroupPath(id)` |
+| `Freeze` / `Thaw` / `Frozen` | `cgroups.Manager` |
+
+`engine.Config.IdleFreeze` / `IdleExit` map straight onto `idle.Config.FreezeAfter` / `ExitAfter`.
+Beyond that:
+
+- **`internal/network`'s port proxy must call `ThawFor(ctx, id)` before dialling the container**,
+  and `TouchWith(id, idle.ReasonPort)` as bytes move. The proxies are built from `startProxy`
+  with only `IP:port` today, so the additive change is an optional hook field the engine fills in.
+  Without this, a frozen container's published port hangs instead of waking it.
+- The API layer calls `ClientConnected`/`ClientDisconnected`, `Touch(id)` on container-scoped
+  requests, and must report a frozen container as **paused**, never as exited.
+- `hull run --idle-freeze=5m` calls `SetFreezeAfter(id, d)`; a negative duration pins a container
+  permanently awake.
+- **The daemon must persist which containers *it* froze and call `Reclaim(ids...)` on recovery.**
+  Without that, a freeze that outlived the daemon is indistinguishable from a user's `hull pause`,
+  and the watcher will correctly refuse to undo it — leaving the container stuck.
+- `Config.OnEvent` → the event bus, `Config.OnIdle` → the daemon's shutdown path,
+  `Config.Logger` → the engine's `*slog.Logger`.
+
+Deliberately not done: memory pressure as an activity signal (PSI is absent on the 5.15 WSL
+kernel), and measuring what a freeze actually returns to Windows — that belongs in an e2e test
+against a real distro.
+
+**`internal/localproxy`** — `hull doctor` should probe whether `<name>.localhost` resolves on
+this machine. Chrome and Edge resolve it internally; curl and PowerShell do not, because Windows'
+resolver has no special case for it the way systemd-resolved does. The remedy is the hosts file
+or the `127.0.0.1` + `Host:` header route.
+
+## 6. `hull doctor --json` buries its answer under the kernel config
 
 The JSON report embeds all 1499 `CONFIG_*` options from `/proc/config.gz`, so the fields anyone
 actually wants are thousands of lines down. The data is genuinely useful in a bug report, but it
@@ -121,7 +162,7 @@ should not be the default: gate `Report.Kernel.Config` behind a `--verbose` flag
 a sibling `hull doctor --kconfig`. Owner: `internal/cli`, with a marshalling tweak in
 `internal/hostinfo`.
 
-## 6. A bridge with no endpoints reports `NO-CARRIER`
+## 7. A bridge with no endpoints reports `NO-CARRIER`
 
 `hull0` shows operstate `DOWN` with the `UP` flag set until the first veth is attached. That is
 normal Linux behaviour, but `hull doctor` and the TUI must not report it as a fault.
