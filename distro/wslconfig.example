@@ -1,0 +1,55 @@
+# Example %USERPROFILE%\.wslconfig for running hull.
+#
+# Copy this to C:\Users\<you>\.wslconfig, edit to taste, then run `wsl --shutdown`.
+#
+# Everything here is GLOBAL: WSL runs one VM with one kernel shared by every distro, so these
+# settings also apply to your Ubuntu, to docker-desktop, and to anything else you have
+# installed. That is a WSL constraint, not a hull one. `hull doctor` will tell you which of
+# these your machine currently needs.
+
+[wsl2]
+
+# --- the one that matters most -------------------------------------------------------------
+# On WSL 2.4.x the kernel mounts cgroup v1 hierarchies and delegates NO controllers to cgroup v2,
+# so --memory, --cpus and --pids-limit silently do nothing. Two ways out:
+#
+#   1. `wsl --update` to 2.5.1 or later. That moves you to a 6.x kernel with pure cgroup v2,
+#      and also brings PSI pressure metrics and idmapped overlay mounts. This is the better fix
+#      and the one hull recommends.
+#   2. Stay on your current kernel and force v1 off with the line below.
+#
+# Uncomment only if you are NOT upgrading:
+# kernelCommandLine = cgroup_no_v1=all
+
+# --- memory --------------------------------------------------------------------------------
+# Defaults to 50% of host RAM. The VM is shared with every other distro, so if you run Docker
+# Desktop alongside hull, give it room. Memory is only returned to Windows on guest reclaim or
+# a full `wsl --shutdown` — which is exactly why hull has a scale-to-zero idle mode.
+# memory = 8GB
+# processors = 8
+
+# Reclaim freed guest memory back to Windows instead of holding it. Worth having.
+# Values: disabled | gradual | dropcache
+autoMemoryReclaim = gradual
+
+# --- networking ----------------------------------------------------------------------------
+# NAT (the default) relays only TCP sockets in LISTEN state from the VM to Windows localhost,
+# which is why hull always opens a real listening socket per published port rather than relying
+# on DNAT alone. Mirrored mode is closer to native but has open issues with container netns
+# tracking and with DNAT of loopback traffic; try it if you need UDP or LAN reachability.
+# networkingMode = mirrored
+# dnsTunneling = true
+# firewall = true
+
+# --- lifecycle -----------------------------------------------------------------------------
+# How long the idle VM lives after every distro has stopped, in milliseconds. hull's Windows
+# keep-alive agent holds the engine distro open while containers are running, and releases it
+# when the engine goes idle, so a short timeout here is what actually gives the memory back.
+vmIdleTimeout = 60000
+
+# Nested virtualization, needed for hull's microVM isolation tier. Windows 11 only.
+nestedVirtualization = true
+
+[experimental]
+# Give the page cache back rather than letting it grow without bound.
+sparseVhd = false

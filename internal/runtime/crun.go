@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -124,30 +123,145 @@ func (r *CrunRuntime) Version() string { return r.version }
 // run executes the runtime binary with the global --root flag prepended and
 // returns its stdout. Failures carry the binary's own stderr, which is the
 // only part of the message that ever says anything useful.
+//
+// Every stream handed to the child is a real *os.File, never an io.Writer the
+// os/exec package would have to pump through a pipe of its own. That is not a
+// micro-optimisation: "crun create" leaves the container process alive holding
+// whatever it was given as stdout, so a pipe created by os/exec is still open
+// when crun exits, and Cmd.Wait - which waits for its own copy goroutines -
+// would block until the container itself exited. Owning the pipes here means
+// the copy outlives the wait, which is exactly what a created-but-not-started
+// container needs.
 func (r *CrunRuntime) run(ctx context.Context, stdio *ioBundle, args ...string) ([]byte, error) {
 	full := append([]string{"--root", r.root}, args...)
 	cmd := exec.CommandContext(ctx, r.binary, full...)
-	var stdout, stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if stdio != nil {
-		cmd.Stdin, cmd.Stdout = stdio.in, stdio.out
+
+	var cleanups []func()
+	defer func() {
+		for _, c := range cleanups {
+			c()
+		}
+	}()
+	track := func(f func()) { cleanups = append(cleanups, f) }
+
+	errFile, err := scratchFile("hull-runtime-err")
+	if err != nil {
+		return nil, err
+	}
+	track(func() { errFile.Close() })
+	cmd.Stderr = errFile
+
+	var outFile *os.File
+	if stdio == nil {
+		outFile, err = scratchFile("hull-runtime-out")
+		if err != nil {
+			return nil, err
+		}
+		track(func() { outFile.Close() })
+		cmd.Stdout = outFile
+	} else {
+		if stdio.in != nil {
+			f, closeAfterStart, ferr := readerFile(stdio.in)
+			if ferr != nil {
+				return nil, ferr
+			}
+			cmd.Stdin = f
+			track(closeAfterStart)
+		}
+		if stdio.out != nil {
+			f, closeAfterStart, ferr := writerFile(stdio.out)
+			if ferr != nil {
+				return nil, ferr
+			}
+			cmd.Stdout = f
+			track(closeAfterStart)
+		}
 		if stdio.err != nil {
-			cmd.Stderr = stdio.err
+			f, closeAfterStart, ferr := writerFile(stdio.err)
+			if ferr != nil {
+				return nil, ferr
+			}
+			cmd.Stderr = f
+			track(closeAfterStart)
 		}
 		cmd.ExtraFiles = stdio.extra
-	} else {
-		cmd.Stdout = &stdout
 	}
-	err := cmd.Run()
-	if err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = strings.TrimSpace(stdout.String())
+
+	runErr := cmd.Run()
+
+	var stdout []byte
+	if outFile != nil {
+		stdout, _ = readFromStart(outFile)
+	}
+	if runErr != nil {
+		msg, _ := readFromStart(errFile)
+		text := strings.TrimSpace(string(msg))
+		if text == "" {
+			text = strings.TrimSpace(string(stdout))
 		}
-		return stdout.Bytes(), fmt.Errorf("runtime: %s %s: %w: %s",
-			r.name, strings.Join(args, " "), err, msg)
+		return stdout, fmt.Errorf("runtime: %s %s: %w: %s",
+			r.name, strings.Join(args, " "), runErr, text)
 	}
-	return stdout.Bytes(), nil
+	return stdout, nil
+}
+
+// scratchFile returns an unlinked temporary file. It is unlinked immediately,
+// so nothing is left behind however the process ends, and a container that
+// inherits it can only write into a file nobody can reach by name.
+func scratchFile(name string) (*os.File, error) {
+	f, err := os.CreateTemp("", name+"-*")
+	if err != nil {
+		return nil, fmt.Errorf("runtime: create a scratch file for the runtime binary: %w", err)
+	}
+	if err := os.Remove(f.Name()); err != nil {
+		f.Close()
+		return nil, fmt.Errorf("runtime: unlink the scratch file: %w", err)
+	}
+	return f, nil
+}
+
+func readFromStart(f *os.File) ([]byte, error) {
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return nil, err
+	}
+	return io.ReadAll(f)
+}
+
+// writerFile turns an io.Writer into a descriptor the child can be given
+// directly. A writer that is already a file is used as it is; anything else
+// gets a pipe whose reading half is drained by a goroutine that outlives the
+// wait.
+func writerFile(w io.Writer) (*os.File, func(), error) {
+	if f, ok := w.(*os.File); ok {
+		return f, func() {}, nil
+	}
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		return nil, nil, fmt.Errorf("runtime: pipe for the runtime binary's output: %w", err)
+	}
+	go func() {
+		defer pr.Close()
+		_, _ = io.Copy(w, pr)
+	}()
+	// The write end is closed once the child holds its own copy, so the
+	// drain goroutine sees EOF when the last writer goes away.
+	return pw, func() { pw.Close() }, nil
+}
+
+// readerFile is writerFile's mirror for standard input.
+func readerFile(r io.Reader) (*os.File, func(), error) {
+	if f, ok := r.(*os.File); ok {
+		return f, func() {}, nil
+	}
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		return nil, nil, fmt.Errorf("runtime: pipe for the runtime binary's input: %w", err)
+	}
+	go func() {
+		defer pw.Close()
+		_, _ = io.Copy(pw, r)
+	}()
+	return pr, func() { pr.Close() }, nil
 }
 
 // ioBundle groups the streams and extra descriptors handed to one invocation.
