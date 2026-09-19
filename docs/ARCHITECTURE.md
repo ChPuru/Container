@@ -187,6 +187,11 @@ before the engine was written, so the design is not resting on assumptions:
   `.wh.<name>`.
 - **Networking** — a bridge plus a veth pair with one end moved into a fresh network namespace
   passes traffic to the gateway, and an `inet` nftables table can be created and dropped cleanly.
+- **The security posture is real, not declared.** Inside a container built from hull's own
+  generated bundle: `mount -t tmpfs` → *permission denied*; `unshare(CLONE_NEWUSER)` →
+  *operation not permitted*; `open`, `chmod` and `getuid` all fine; `/proc/kcore` masked to zero
+  readable bytes; `/proc/sys` read-only. `NoNewPrivs: 1` and `Seccomp: 2` in
+  `/proc/self/status`, and `CapEff: 00000000a80425fb` — Docker's default fourteen exactly.
 - **Native-runtime primitives** — a probe exercised every syscall the hand-written runtime is
   designed around, and all of them work here on 5.15: `openat2` with
   `RESOLVE_IN_ROOT|RESOLVE_NO_MAGICLINKS` (and it correctly refuses an absolute symlink that
