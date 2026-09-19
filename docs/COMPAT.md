@@ -82,9 +82,21 @@ These are the ones that look fine in a curl test and then fail against a real cl
 | Swarm (`/services`, `/nodes`, `/swarm`, `/tasks`, `/secrets`, `/configs`) | hull is single-host | `docker stack` does not work; nothing else notices |
 | Plugins (`/plugins`) | no plugin system | none in practice |
 | Log drivers beyond `json-file` and `none` | scope | `--log-driver syslog` errors clearly |
-| `/containers/{id}/attach/ws` | low usage | the raw hijack path is used instead |
+| ~~`/containers/{id}/attach/ws`~~ | — | **now implemented**: a hand-rolled RFC 6455 handshake and framing, no new dependency. Stricter than the raw attach, and deliberately so: it requires a running container, which is what moby does too |
 | Schema 1 images | removed from the ecosystem in 2025 | very old tags fail with an explicit message |
 | Checkpoints (`/checkpoints`) | CRIU is a later milestone | hull's own `snapshot` verbs cover the useful case |
+
+## Gaps found by running it
+
+These are real and open, each with an owner. None of them breaks a client outright.
+
+| Gap | Effect | Owner |
+|---|---|---|
+| `X-Registry-Auth` is decoded and validated, then dropped | a private-registry pull falls back to the daemon's own keychain instead of the caller's credentials | `engine.Pull`/`Push` need a credentials parameter |
+| `?size=1` reports `SizeRw`/`SizeRootFs` as 0 | fields are present and correctly typed, so nothing breaks; the numbers are just not computed | `engine.List` ignores `ListOptions.Size` |
+| no per-container activity signal | a live client keeps the *daemon* awake but not an individual container, so scale-to-zero could freeze something a client is watching | `engine` needs an exported `Touch(id)` |
+| `hulld` does not record which containers it froze | after a restart, an engine-initiated freeze is indistinguishable from a user's `pause`, and the watcher correctly refuses to undo it | `hulld` must persist and call `idle.Reclaim` |
+| `hull cp -L` only follows links one way | `hull cp -L ctr:/link ./x` copies the link, not its target | one-line fix in `copyFromContainer` |
 
 ## Verifying
 
