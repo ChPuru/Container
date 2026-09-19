@@ -110,6 +110,38 @@ Fixed in `internal/engine`: `intersectSpecVersions` folds the external binary's 
 driver's before negotiating, so the version written is the lowest both will read. On this host
 that is `1.1.0` — crun's maximum, below hull's `1.2.0`.
 
+## 1e. WSL kills the daemon, and it looks like every other bug
+
+Hours went into chasing `docker run` "hangs" and a daemon "crash". Neither was real. The log
+told the truth once it was read properly:
+
+```json
+{"level":"INFO","msg":"hulld: shutting down; running containers are left alone","signal":"terminated"}
+```
+
+No panic. **SIGTERM** — arriving at the exact second three unrelated background `wsl.exe`
+clients exited. WSL tears the distro down seconds after its last Windows-side client goes away,
+and everything inside dies with it, including a daemon started with `setsid nohup` and
+`disown`. The failure then presents as whatever the next command happened to be: a hung
+`docker run`, a stuck container, "Cannot connect to the Docker daemon".
+
+Two things follow.
+
+**For the engine:** this is not a testing artefact, it is the product requirement. hull's
+Windows keep-alive agent — a long-lived `wsl.exe` child held open for as long as containers are
+running — is the only thing standing between a user and their engine vanishing mid-build. The
+test harness reproduced the exact failure hull exists to prevent, which is the strongest
+possible argument that the agent is load-bearing rather than a nicety.
+
+**For testing:** a daemon test must hold exactly one `wsl.exe` client open for its whole life,
+with nothing else running concurrently. Backgrounded WSL commands that finish during the test
+will kill it.
+
+A third trap, unrelated but expensive: `pkill -f "some pattern"` run through
+`wsl.exe -e bash -c '...'` matches **its own shell**, because the pattern appears in that
+shell's command line. It kills the very test it is cleaning up for. Match on `pkill -x <exe>`,
+or a pattern that cannot appear in the invoking command.
+
 ## 2. `error obtaining VCS status: exit status 128` — FIXED
 
 Building any `cmd/` package inside WSL as root fails, because git refuses a repo owned by the
