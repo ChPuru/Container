@@ -48,7 +48,7 @@ func newCopyCommand() *Command {
 				return err
 			}
 			if srcCtr != "" {
-				return copyFromContainer(ctx, env, cli, srcCtr, srcPath, dstPath)
+				return copyFromContainer(ctx, env, cli, srcCtr, srcPath, dstPath, followLink)
 			}
 			return copyToContainer(ctx, env, cli, srcPath, dstCtr, dstPath, client.CopyToContainerOptions{
 				CopyUIDGID: archiveMode,
@@ -82,10 +82,26 @@ func splitCopyArg(arg string) (container, p string) {
 
 // copyFromContainer streams a path out of a container and unpacks it on the
 // host, or writes the raw tar to stdout when the destination is "-".
-func copyFromContainer(ctx context.Context, env *Env, cli *client.Client, container, srcPath, dst string) error {
+func copyFromContainer(ctx context.Context, env *Env, cli *client.Client, container, srcPath, dst string, followLink bool) error {
 	body, stat, err := cli.CopyFromContainer(ctx, container, srcPath)
 	if err != nil {
 		return err
+	}
+
+	// -L means "copy what the link points at", in both directions. The stat
+	// tells us the path was a symlink; re-issuing the copy against its target
+	// is what actually follows it. Without this the flag silently did nothing
+	// on the container-to-host direction and copied the link itself.
+	if followLink && stat.LinkTarget != "" {
+		target := stat.LinkTarget
+		if !path.IsAbs(target) {
+			target = path.Join(path.Dir(srcPath), target)
+		}
+		env.Debugf("following symlink %s -> %s", srcPath, target)
+		_ = body.Close()
+		if body, stat, err = cli.CopyFromContainer(ctx, container, target); err != nil {
+			return fmt.Errorf("following symlink %s to %s: %w", srcPath, target, err)
+		}
 	}
 	defer func() { _ = body.Close() }()
 

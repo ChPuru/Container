@@ -228,10 +228,20 @@ before the engine was written, so the design is not resting on assumptions:
   the full seal set, `clone3`, `fsopen`/`fsmount`, `no_new_privs` followed by a cBPF `seccomp`
   filter, and a user + pid + net + mount + uts + ipc namespace set with uid/gid mappings written
   from the parent and `setgroups` denied. **The security design does not need a newer kernel.**
-- **cgroups** — the one thing that does not work. `/sys/fs/cgroup/cgroup.controllers` does not
-  even exist (v2 is at `/sys/fs/cgroup/unified` with an empty controller set), confirming the
-  hybrid-cgroup problem. Resource limits will not work until `wsl --update` or
-  `cgroup_no_v1=all`, and `hull doctor` must say so up front rather than failing at `run` time.
+- **cgroups — fixed.** This was the one thing that did not work: `/sys/fs/cgroup` was a tmpfs
+  with v2 exiled to `/sys/fs/cgroup/unified` and an empty controller set. `wsl --update` is
+  blocked on this network (`Wsl/UpdatePackage/0x80072eff`, connection reset, every attempt), so
+  the equivalent was applied through `%USERPROFILE%\.wslconfig`:
+
+  ```ini
+  [wsl2]
+  kernelCommandLine = cgroup_no_v1=all
+  ```
+
+  After `wsl --shutdown`, `/sys/fs/cgroup` is `cgroup2fs` with
+  `cpuset cpu io memory hugetlb pids rdma misc` delegated, zero v1 mounts, and `memory.max` /
+  `pids.max` verified writable. **Resource limits work.** Still absent without the 6.x kernel:
+  PSI pressure metrics and idmapped overlay layers.
 - **Registry** — the full Docker Hub flow works from this network over IPv4: an unauthenticated
   manifest request returns `401` with a parseable `WWW-Authenticate`, the token dance succeeds,
   and `library/alpine:3.20` comes back as an `application/vnd.oci.image.index.v1+json` with 16
