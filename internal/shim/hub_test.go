@@ -32,6 +32,12 @@ func (s *recordingSink) Close() error {
 	return nil
 }
 
+func (s *recordingSink) isClosed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
+}
+
 func (s *recordingSink) String() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -251,7 +257,7 @@ func TestHubCloseStdinIsOwnerOnly(t *testing.T) {
 	if err := owner.CloseStdin(); err != nil {
 		t.Fatalf("owner.CloseStdin: %v", err)
 	}
-	if !sink.closed {
+	if !sink.isClosed() {
 		t.Fatal("closing stdin should have closed the container's input sink")
 	}
 	if h.HasStdin() {
@@ -317,19 +323,15 @@ func TestHubDropsAStalledAttacher(t *testing.T) {
 	if err := h.Attach(slow); err != nil {
 		t.Fatalf("Attach: %v", err)
 	}
-	live := NewAttacher(AttachOptions{Stdout: true})
-	if err := h.Attach(live); err != nil {
+	// A bystander that subscribes to nothing can never stall, so it is a
+	// deterministic witness that the hub drops only the attacher at fault.
+	bystander := NewAttacher(AttachOptions{})
+	if err := h.Attach(bystander); err != nil {
 		t.Fatalf("Attach: %v", err)
 	}
 
 	// Nobody reads `slow`, so its queue fills and the hub disconnects it
 	// rather than letting the container block on it.
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		for range live.Chunks() {
-		}
-	}()
 	for i := 0; i < attacherQueue*4; i++ {
 		if _, err := h.Write(KindStdout, []byte("x")); err != nil {
 			t.Errorf("Write: %v", err)
@@ -345,10 +347,14 @@ func TestHubDropsAStalledAttacher(t *testing.T) {
 		t.Errorf("Err = %v, want errAttacherStalled", slow.Err())
 	}
 	if h.Count() != 1 {
-		t.Errorf("Count = %d, want only the live attacher left", h.Count())
+		t.Errorf("Count = %d, want only the bystander left", h.Count())
+	}
+	select {
+	case <-bystander.Done():
+		t.Error("the bystander was disconnected too")
+	default:
 	}
 	h.Close()
-	<-done
 }
 
 func TestHubCloseEndsEveryStream(t *testing.T) {
@@ -373,7 +379,7 @@ func TestHubCloseEndsEveryStream(t *testing.T) {
 			t.Fatalf("attacher %d was not ended by Close", i)
 		}
 	}
-	if !sink.closed {
+	if !sink.isClosed() {
 		t.Error("Close should close the container's stdin sink")
 	}
 	if err := h.Close(); err != nil {

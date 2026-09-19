@@ -114,8 +114,11 @@ func TestPullFull(t *testing.T) {
 	if got := img.RepoTags; len(got) != 1 || !strings.HasSuffix(got[0], "/library/alpine:3.20") {
 		t.Errorf("RepoTags = %v", got)
 	}
-	if got := img.RepoDigests; len(got) != 1 || !strings.HasSuffix(got[0], "@"+amd.ManifestDesc.Digest) {
-		t.Errorf("RepoDigests = %v", got)
+	// RepoDigests must pin the digest the tag resolves to — the index — not the
+	// per-platform manifest, because that is the digest the image can be
+	// re-pulled by on any architecture.
+	if got := img.RepoDigests; len(got) != 1 || !strings.HasSuffix(got[0], "@"+idxDesc.Digest) {
+		t.Errorf("RepoDigests = %v, want the index digest %s", got, idxDesc.Digest)
 	}
 	if img.Config.Entrypoint[0] != "/bin/sh" || img.Config.Env[0] != "PATH=/usr/bin" {
 		t.Errorf("Config = %+v", img.Config)

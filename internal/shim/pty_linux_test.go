@@ -12,6 +12,33 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// readWithTimeout does one blocking read in a goroutine. A pty master is a
+// character device, which Go's runtime poller will not take, so SetReadDeadline
+// is not available on it and a plain read has to be bounded this way.
+func readWithTimeout(t *testing.T, f *os.File, d time.Duration) string {
+	t.Helper()
+	type result struct {
+		s   string
+		err error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		buf := make([]byte, 256)
+		n, err := f.Read(buf)
+		ch <- result{string(buf[:n]), err}
+	}()
+	select {
+	case res := <-ch:
+		if res.err != nil {
+			t.Fatalf("read %s: %v", f.Name(), res.err)
+		}
+		return res.s
+	case <-time.After(d):
+		t.Fatalf("timed out reading %s", f.Name())
+		return ""
+	}
+}
+
 func TestOpenPTY(t *testing.T) {
 	t.Parallel()
 	master, slave, err := OpenPTY()
@@ -39,16 +66,8 @@ func TestOpenPTY(t *testing.T) {
 	if _, err := slave.Write([]byte("hello\n")); err != nil {
 		t.Fatalf("write to slave: %v", err)
 	}
-	buf := make([]byte, 64)
-	if err := master.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
-		t.Fatalf("set deadline: %v", err)
-	}
-	n, err := master.Read(buf)
-	if err != nil {
-		t.Fatalf("read from master: %v", err)
-	}
 	// A pty in canonical mode translates \n on output into \r\n.
-	if got := string(buf[:n]); got != "hello\r\n" && got != "hello\n" {
+	if got := readWithTimeout(t, master, 2*time.Second); got != "hello\r\n" && got != "hello\n" {
 		t.Errorf("master read %q, want the slave's line", got)
 	}
 }
@@ -215,16 +234,8 @@ func TestConsoleSocketReceivesTheMaster(t *testing.T) {
 	if _, err := slave.Write([]byte("from the container\n")); err != nil {
 		t.Fatalf("write to slave: %v", err)
 	}
-	if err := got.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
-		t.Fatalf("set deadline: %v", err)
-	}
-	buf := make([]byte, 64)
-	n, err := got.Read(buf)
-	if err != nil {
-		t.Fatalf("read the received master: %v", err)
-	}
-	if !strings.HasPrefix(string(buf[:n]), "from the container") {
-		t.Fatalf("received master read %q", buf[:n])
+	if line := readWithTimeout(t, got, 2*time.Second); !strings.HasPrefix(line, "from the container") {
+		t.Fatalf("received master read %q", line)
 	}
 }
 

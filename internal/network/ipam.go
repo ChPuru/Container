@@ -295,6 +295,29 @@ func (a *IPAM) Release(netID string, ip net.IP) error {
 	return a.save(p)
 }
 
+// Free returns an address to the pool immediately, as if it had never been
+// handed out. It is the rollback path: Connect calls it when an attach fails
+// part way, because an address that never reached a container has no owner to
+// preserve it for. Release is the graceful counterpart.
+func (a *IPAM) Free(netID string, ip net.IP) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	p, ok := a.pools[netID]
+	if !ok {
+		return fmt.Errorf("%w: ipam pool for network %s", ErrNotFound, netID)
+	}
+	off, err := p.offsetOf(ip)
+	if err != nil {
+		return err
+	}
+	p.unqueue(off)
+	p.clear(off)
+	if off < p.Cursor {
+		p.Cursor = off
+	}
+	return a.save(p)
+}
+
 // path returns the on-disk location of a pool file.
 func (a *IPAM) path(netID string) string { return filepath.Join(a.dir, netID+".json") }
 
@@ -421,6 +444,15 @@ func (p *addrPool) set(off uint32) {
 		return
 	}
 	p.Bitmap[i] |= 1 << (off % 8)
+}
+
+// clear marks off as free again.
+func (p *addrPool) clear(off uint32) {
+	i := int(off / 8)
+	if i >= len(p.Bitmap) || off == p.gw {
+		return
+	}
+	p.Bitmap[i] &^= 1 << (off % 8)
 }
 
 // unqueue removes off from the reuse queue, reporting whether it was there.

@@ -564,3 +564,89 @@ func TestPlatformStringRendering(t *testing.T) {
 		})
 	}
 }
+
+func TestFetchForeignLayerUsesDescriptorURLsWithoutCredentials(t *testing.T) {
+	f := newFakeRegistry(t)
+	f.RequireAuth = true
+
+	body := bytes.Repeat([]byte("foreign"), 100)
+	dgst := f.AddBlob(body)
+	hexPart := strings.TrimPrefix(dgst, content.Algorithm+":")
+
+	c := f.Client(Options{})
+	rc, err := c.FetchBlob(context.Background(), f.Ref("library/windows:1"), types.Descriptor{
+		MediaType: imagespec.MediaTypeDockerForeignLayer,
+		Digest:    dgst,
+		Size:      int64(len(body)),
+		URLs:      []string{f.CDN.URL + "/blob/" + hexPart},
+	})
+	if err != nil {
+		t.Fatalf("FetchBlob: %v", err)
+	}
+	defer rc.Close()
+
+	got, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatalf("reading foreign layer: %v", err)
+	}
+	if !bytes.Equal(got, body) {
+		t.Error("the foreign layer body is wrong")
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, h := range f.CDNAuthHeaders {
+		if h != "" {
+			t.Errorf("a foreign-layer host received Authorization %q", h)
+		}
+	}
+	if n := f.countRequestsLocked("/blobs/" + dgst); n != 0 {
+		t.Error("a foreign layer was requested from the registry, which never serves one")
+	}
+}
+
+func TestFetchBlobFallsBackToDescriptorURLs(t *testing.T) {
+	f := newFakeRegistry(t)
+	body := []byte("only on the mirror")
+	dgst := content.DigestBytes(body)
+	// Present on the mirror, absent from the registry itself.
+	f.mu.Lock()
+	f.blobs[dgst] = body
+	f.mu.Unlock()
+	hexPart := strings.TrimPrefix(dgst, content.Algorithm+":")
+
+	// Make the registry answer 404 for this digest by serving it only via the
+	// CDN handler: delete it from the registry's view first.
+	mirror := f.CDN.URL + "/blob/" + hexPart
+	f2 := newFakeRegistry(t) // an empty registry
+	c := f2.Client(Options{})
+	rc, err := c.FetchBlob(context.Background(), f2.Ref("library/x:1"), types.Descriptor{
+		MediaType: imagespec.MediaTypeImageLayerGzip,
+		Digest:    dgst,
+		Size:      int64(len(body)),
+		URLs:      []string{mirror},
+	})
+	if err != nil {
+		t.Fatalf("FetchBlob did not fall back to the descriptor URL: %v", err)
+	}
+	defer rc.Close()
+	got, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatalf("reading from the mirror: %v", err)
+	}
+	if !bytes.Equal(got, body) {
+		t.Error("the mirrored body is wrong")
+	}
+}
+
+func TestFetchForeignLayerWithoutURLs(t *testing.T) {
+	f := newFakeRegistry(t)
+	c := f.Client(Options{})
+	_, err := c.FetchBlob(context.Background(), f.Ref("library/windows:1"), types.Descriptor{
+		MediaType: imagespec.MediaTypeDockerForeignLayer,
+		Digest:    content.DigestBytes([]byte("x")),
+		Size:      1,
+	})
+	if !errors.Is(err, ErrMalformed) {
+		t.Fatalf("err = %v, want ErrMalformed", err)
+	}
+}

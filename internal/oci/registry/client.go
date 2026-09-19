@@ -136,13 +136,13 @@ func NewClient(opts Options) *Client {
 	hc.CheckRedirect = stripAuthOnCrossHostRedirect
 
 	c := &Client{
-		http:        hc,
-		userAgent:   opts.UserAgent,
-		insecure:    opts.Insecure,
-		auth:        opts.Auth,
-		concurrency: opts.Concurrency,
-		progress:    opts.Progress,
-		challenges:  map[string]Challenge{},
+		http:          hc,
+		userAgent:     opts.UserAgent,
+		insecure:      opts.Insecure,
+		auth:          opts.Auth,
+		concurrency:   opts.Concurrency,
+		progress:      opts.Progress,
+		challenges:    map[string]Challenge{},
 		maxRetries:    defaultMaxRetries,
 		baseBackoff:   defaultBaseBackoff,
 		pushChunkSize: DefaultPushChunkSize,

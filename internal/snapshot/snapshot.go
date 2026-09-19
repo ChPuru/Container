@@ -488,8 +488,13 @@ func validateName(kind, s string) error {
 	if len(s) > 128 {
 		return fmt.Errorf("snapshot: %s %q is %d bytes, the limit is 128", kind, s, len(s))
 	}
-	if s == "." || s == ".." {
-		return fmt.Errorf("snapshot: %s %q is not a usable directory name", kind, s)
+	if s[0] == '.' {
+		// Dot-prefixed names are reserved: the snapshotter's own bookkeeping
+		// (.complete, .mounts.lock, the .<name>.tmp- staging directory a
+		// checkpoint is built in) lives behind a leading dot, and listings skip
+		// it. Letting a container ID or checkpoint name start with one would
+		// make a user-chosen name collide with hull's internals.
+		return fmt.Errorf("snapshot: %s %q starts with a dot, which is reserved for hull's own files", kind, s)
 	}
 	for i := 0; i < len(s); i++ {
 		c := s[i]

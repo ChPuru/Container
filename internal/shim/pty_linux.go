@@ -14,6 +14,13 @@ import (
 // OpenPTY allocates a pseudoterminal pair and returns the master and the
 // slave.
 //
+// An OCI runtime such as crun allocates the container's pty itself and hands
+// the master back over a console socket, so the supervisor's terminal path
+// uses ConsoleSocket, not this. OpenPTY plus SendFD is the other direction:
+// the shim owns the pty and gives the slave away, which is what hull's own
+// runtime will use once it lands, and what a caller gets when it wants a
+// terminal the runtime did not create.
+//
 // This is posix_openpt/grantpt/unlockpt without libc: /dev/ptmx is opened,
 // TIOCSPTLCK unlocks the slave (grantpt is a no-op on Linux with devpts, where
 // the kernel already gives the slave the right owner and mode) and TIOCGPTN

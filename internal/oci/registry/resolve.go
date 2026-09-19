@@ -188,6 +188,18 @@ func selectPlatform(idx imagespec.Index, want types.Platform) (types.Descriptor,
 // manifest is refused with ErrSchema1, and an index with no entry for the
 // platform yields ErrPlatformNotFound listing what the index does offer.
 func (c *Client) Resolve(ctx context.Context, ref reference.Reference, plat *types.Platform) (types.Descriptor, []byte, error) {
+	_, desc, body, err := c.ResolveAll(ctx, ref, plat)
+	return desc, body, err
+}
+
+// ResolveAll is Resolve with the root descriptor as well: the manifest the
+// reference itself names, which for a multi-platform tag is the image index
+// rather than the platform manifest that was selected inside it.
+//
+// That root digest is the one a user can re-pull the whole multi-arch image by,
+// so it is what hull records in RepoDigests and in hull.lock. For a
+// single-platform reference root and selected are the same descriptor.
+func (c *Client) ResolveAll(ctx context.Context, ref reference.Reference, plat *types.Platform) (root, selected types.Descriptor, body []byte, err error) {
 	want := DefaultPlatform()
 	if plat != nil {
 		want = *plat
@@ -206,42 +218,47 @@ func (c *Client) Resolve(ctx context.Context, ref reference.Reference, plat *typ
 	for depth := 0; ; depth++ {
 		desc, body, err := c.fetchManifest(ctx, ref, target, expect)
 		if err != nil {
-			return types.Descriptor{}, nil, err
+			return types.Descriptor{}, types.Descriptor{}, nil, err
+		}
+		if depth == 0 {
+			root = desc
 		}
 
 		switch {
 		case imagespec.IsSchema1(desc.MediaType):
-			return types.Descriptor{}, nil, &SchemaOneError{Ref: ref.FamiliarString(), MediaType: desc.MediaType}
+			return types.Descriptor{}, types.Descriptor{}, nil,
+				&SchemaOneError{Ref: ref.FamiliarString(), MediaType: desc.MediaType}
 
 		case imagespec.IsManifest(desc.MediaType):
-			return desc, body, nil
+			return root, desc, body, nil
 
 		case imagespec.IsManifestList(desc.MediaType):
 			if depth >= maxIndexDepth {
-				return types.Descriptor{}, nil, fmt.Errorf(
+				return types.Descriptor{}, types.Descriptor{}, nil, fmt.Errorf(
 					"registry: %s: image index nests more than %d levels deep: %w",
 					ref.FamiliarString(), maxIndexDepth, ErrIndexTooDeep)
 			}
 			var idx imagespec.Index
 			if err := json.Unmarshal(body, &idx); err != nil {
-				return types.Descriptor{}, nil, fmt.Errorf("registry: %s: parsing image index: %w: %w",
-					ref.FamiliarString(), err, ErrMalformed)
+				return types.Descriptor{}, types.Descriptor{}, nil,
+					fmt.Errorf("registry: %s: parsing image index: %w: %w", ref.FamiliarString(), err, ErrMalformed)
 			}
 			sel, have, ok := selectPlatform(idx, want)
 			if !ok {
-				return types.Descriptor{}, nil, &PlatformNotFoundError{
+				return types.Descriptor{}, types.Descriptor{}, nil, &PlatformNotFoundError{
 					Ref:  ref.FamiliarString(),
 					Want: want,
 					Have: have,
 				}
 			}
 			if err := content.ValidateDigest(sel.Digest); err != nil {
-				return types.Descriptor{}, nil, fmt.Errorf("registry: %s: index entry digest: %w", ref.FamiliarString(), err)
+				return types.Descriptor{}, types.Descriptor{}, nil,
+					fmt.Errorf("registry: %s: index entry digest: %w", ref.FamiliarString(), err)
 			}
 			target, expect = sel.Digest, sel.Digest
 
 		default:
-			return types.Descriptor{}, nil, fmt.Errorf(
+			return types.Descriptor{}, types.Descriptor{}, nil, fmt.Errorf(
 				"registry: %s: registry served unsupported manifest media type %q: %w",
 				ref.FamiliarString(), desc.MediaType, ErrMalformed)
 		}

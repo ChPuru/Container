@@ -372,6 +372,16 @@ func (m *Manager) realise(ctx context.Context, n *types.Network) error {
 	if gw == nil {
 		return fmt.Errorf("%w: network %s has gateway %q", ErrInvalidConfig, n.Name, n.IPAM.Gateway)
 	}
+	m.mu.RLock()
+	known := m.hostMTU
+	m.mu.RUnlock()
+	if known == 0 {
+		// Create can run before Init; resolve the uplink MTU on first use so a
+		// network never silently ends up with a 1500-byte MTU behind a VPN.
+		if err := m.resolveHostMTU(ctx); err != nil {
+			return err
+		}
+	}
 	mtu := m.networkMTU(n)
 	if err := m.links.EnsureBridge(ctx, n.BridgeName, mtu); err != nil {
 		return err
@@ -762,7 +772,7 @@ func (m *Manager) Connect(ctx context.Context, netID string, c *types.Container,
 	if cfg.MacAddress != "" {
 		parsed, err := net.ParseMAC(cfg.MacAddress)
 		if err != nil {
-			_ = m.ipam.Release(n.ID, ip)
+			_ = m.ipam.Free(n.ID, ip)
 			return nil, fmt.Errorf("%w: mac address %q: %w", ErrInvalidConfig, cfg.MacAddress, err)
 		}
 		mac = parsed
@@ -777,13 +787,16 @@ func (m *Manager) Connect(ctx context.Context, netID string, c *types.Container,
 	peerIf := "hp-" + suffix
 	mtu := m.networkMTU(n)
 
+	// Rollback uses Free, not Release: an address that never reached a
+	// container has not been used, so it goes straight back to the fresh pool
+	// instead of to the back of the reuse queue.
 	cleanup := func() {
 		_ = m.links.DeleteLink(ctx, hostIf)
-		_ = m.ipam.Release(n.ID, ip)
+		_ = m.ipam.Free(n.ID, ip)
 	}
 
 	if err := m.links.CreateVeth(ctx, hostIf, peerIf, mtu); err != nil {
-		_ = m.ipam.Release(n.ID, ip)
+		_ = m.ipam.Free(n.ID, ip)
 		return nil, err
 	}
 	if err := m.links.AttachToBridge(ctx, hostIf, n.BridgeName); err != nil {

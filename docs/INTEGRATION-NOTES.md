@@ -12,12 +12,49 @@ and no clue as to which field it disliked. crun's own `crun spec` emits `"1.0.0"
 Downgrading the generated `config.json` to `"1.0.2"` made the exact same bundle run perfectly —
 so the version string was the *only* incompatibility, not any field hull emits.
 
-**Fix:** `bundle.Options.SpecVersion` selects the version, and each runtime driver reports the
-highest it accepts through `Features()`. The engine asks the driver and passes it down. hull
-still *models* 1.2.0; it just writes whatever the installed runtime will read.
+The runtime tells us what it wants, if we ask. `crun features` returns:
+
+```json
+{ "ociVersionMin": "1.0.0", "ociVersionMax": "1.1.0+dev", ... }
+```
+
+**Fix:** `bundle.Options.SpecVersion` selects the version, and each driver reports its accepted
+range through `RuntimeFeatures.OCIVersions` — the crun driver parses it from `crun features`
+(stripping a `+dev` suffix) and falls back to `1.0.2` when the subcommand is missing, as it is
+on older runc. The engine takes the lower of hull's version and the driver's maximum. hull still
+*models* 1.2.0; it just writes whatever the installed runtime will read.
 
 This matters beyond crun: runc, youki and gVisor all have their own floors, and a user with an
 older runtime on `PATH` would otherwise hit an unreadable error on their very first `hull run`.
+
+## 1b. `type: "cgroup"` is a request, not an instruction — OPEN
+
+The native runtime reaches the in-container init stage and then dies:
+
+```
+hull-init: initspec: mount /sys/fs/cgroup: mount(cgroup, type cgroup, ...): operation not permitted
+```
+
+hull's bundle is not wrong here — it emits exactly the mount crun's own `crun spec` emits, which
+is what the OCI spec says:
+
+```json
+{"destination": "/sys/fs/cgroup", "type": "cgroup", "source": "cgroup",
+ "options": ["nosuid", "noexec", "nodev", "relatime", "ro"]}
+```
+
+The mistake is taking it literally. Every real runtime special-cases `type: "cgroup"` and decides
+what to actually mount from the host's cgroup mode:
+
+- **unified host** → `mount -t cgroup2`, or bind the delegated subtree when the container has no
+  cgroup namespace
+- **hybrid or legacy host** (this one) → bind the host's `/sys/fs/cgroup` read-only, or mount each
+  v1 controller individually; a fresh `mount -t cgroup` from an unprivileged mount namespace is
+  `EPERM` and always will be
+- **inside a user namespace** → always a read-only bind, never a fresh filesystem
+
+**Owner:** `internal/runtime`'s init stage. It is the last thing standing between the native
+runtime and a running container; the crun driver is unaffected because crun already does this.
 
 ## 2. `error obtaining VCS status: exit status 128` — FIXED
 

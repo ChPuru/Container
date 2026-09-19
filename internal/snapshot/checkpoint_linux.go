@@ -571,6 +571,15 @@ func (s *Snapshotter) copyTree(ctx context.Context, src, dst string, share bool)
 
 	var total int64
 	links := make(map[[2]uint64]string)
+	// Directory timestamps are applied in a second pass: creating a child
+	// updates its parent's mtime, so stamping a directory during the walk
+	// would be undone by the very next entry.
+	type dirTime struct {
+		rel  string
+		atim unix.Timespec
+		mtim unix.Timespec
+	}
+	var dirTimes []dirTime
 
 	err = walkTree(ctx, src, func(rel string, dirfd int, name string, st *unix.Stat_t) error {
 		parent := path.Dir(rel)
@@ -602,8 +611,9 @@ func (s *Snapshotter) copyTree(ctx context.Context, src, dst string, share bool)
 					return fmt.Errorf("snapshot: copy xattrs of %q: %w", rel, cerr)
 				}
 			}
-			applyMeta(cfd, st)
+			applyOwnerMode(cfd, st)
 			unix.Close(cfd)
+			dirTimes = append(dirTimes, dirTime{rel: rel, atim: st.Atim, mtim: st.Mtim})
 
 		case unix.S_IFREG:
 			if st.Nlink > 1 {
@@ -631,6 +641,7 @@ func (s *Snapshotter) copyTree(ctx context.Context, src, dst string, share bool)
 				return fmt.Errorf("snapshot: create link %q: %w", rel, err)
 			}
 			_ = unix.Fchownat(dfd, name, int(st.Uid), int(st.Gid), unix.AT_SYMLINK_NOFOLLOW)
+			applyTimes(dfd, name, st)
 			total += st.Size
 
 		default:
@@ -641,12 +652,28 @@ func (s *Snapshotter) copyTree(ctx context.Context, src, dst string, share bool)
 				return fmt.Errorf("snapshot: create device or fifo %q: %w", rel, err)
 			}
 			_ = unix.Fchownat(dfd, name, int(st.Uid), int(st.Gid), unix.AT_SYMLINK_NOFOLLOW)
-			_ = unix.UtimesNanoAt(dfd, name, []unix.Timespec{st.Atim, st.Mtim}, unix.AT_SYMLINK_NOFOLLOW)
+			applyTimes(dfd, name, st)
 		}
 		return nil
 	})
 	if err != nil {
 		return 0, err
+	}
+
+	// Deepest first, so a parent is stamped after every child that would have
+	// touched its mtime.
+	for i := len(dirTimes) - 1; i >= 0; i-- {
+		d := dirTimes[i]
+		parent := path.Dir(d.rel)
+		if parent == "." {
+			parent = ""
+		}
+		pf, oerr := fsutil.SecureOpen(dst, parent, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
+		if oerr != nil {
+			continue
+		}
+		_ = unix.UtimesNanoAt(int(pf.Fd()), path.Base(d.rel), []unix.Timespec{d.atim, d.mtim}, unix.AT_SYMLINK_NOFOLLOW)
+		pf.Close()
 	}
 	return total, nil
 }
@@ -706,8 +733,9 @@ func copyRegular(srcdirfd int, srcname string, dstdirfd int, dstname string, st 
 			cerr := unix.IoctlFileClone(dfd, sfd)
 			if cerr == nil {
 				_ = copyXattrs(sfd, dfd)
-				applyMeta(dfd, st)
+				applyOwnerMode(dfd, st)
 				unix.Close(dfd)
+				applyTimes(dstdirfd, dstname, st)
 				return nil
 			}
 			unix.Close(dfd)
@@ -733,10 +761,11 @@ func copyRegular(srcdirfd int, srcname string, dstdirfd int, dstname string, st 
 		return fmt.Errorf("copy contents: %w", cerr)
 	}
 	_ = copyXattrs(sfd, dfd)
-	applyMeta(dfd, st)
+	applyOwnerMode(dfd, st)
 	if err := df.Close(); err != nil {
 		return fmt.Errorf("close destination: %w", err)
 	}
+	applyTimes(dstdirfd, dstname, st)
 	return nil
 }
 
@@ -749,13 +778,25 @@ func dupFD(fd int) int {
 	return n
 }
 
-// applyMeta stamps ownership, mode and timestamps onto an open descriptor.
-// Ownership is best-effort: an unprivileged copy cannot give a file away, and
-// failing the whole checkpoint over that would be worse than the drift.
-func applyMeta(fd int, st *unix.Stat_t) {
+// applyOwnerMode stamps ownership and mode onto an open descriptor.
+//
+// Both are best-effort: an unprivileged copy cannot give a file away, and
+// failing a whole checkpoint over a uid it was never allowed to set would be
+// worse than the drift. Setuid bits survive because the full mode is passed.
+func applyOwnerMode(fd int, st *unix.Stat_t) {
 	_ = unix.Fchown(fd, int(st.Uid), int(st.Gid))
 	_ = unix.Fchmod(fd, st.Mode&0o7777)
-	_ = unix.UtimesNanoAt(fd, "", []unix.Timespec{st.Atim, st.Mtim}, unix.AT_EMPTY_PATH)
+}
+
+// applyTimes stamps access and modification times on an entry named inside a
+// directory descriptor.
+//
+// It deliberately goes through the parent rather than the entry's own
+// descriptor: utimensat's AT_EMPTY_PATH form is not portable across the kernels
+// hull targets, while the name-relative form is, and the parent descriptor is
+// already open at every call site.
+func applyTimes(dirfd int, name string, st *unix.Stat_t) {
+	_ = unix.UtimesNanoAt(dirfd, name, []unix.Timespec{st.Atim, st.Mtim}, unix.AT_SYMLINK_NOFOLLOW)
 }
 
 // copyXattrs copies every extended attribute from one descriptor to another.

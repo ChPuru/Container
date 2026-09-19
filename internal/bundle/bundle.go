@@ -158,6 +158,17 @@ type Options struct {
 
 	// Annotations are merged into the spec's annotations, after hull's own.
 	Annotations map[string]string
+
+	// SpecVersion is the runtime-spec version written to config.json. Empty
+	// means runtimespec.Version, the newest hull models.
+	//
+	// It is a knob because runtimes refuse a spec version they do not know,
+	// and they say so badly: crun 1.14.1 rejects 1.2.0 with a bare "unknown
+	// version specified" and no hint as to which field it disliked, even
+	// though it reads every field hull emits. Drivers report the range they
+	// accept in RuntimeFeatures.OCIVersions, and the engine passes the
+	// highest mutually understood version down here.
+	SpecVersion string
 }
 
 // builder carries the per-call state of a Generate, mainly so warnings can be
@@ -345,8 +356,13 @@ func Generate(c *types.Container, img *types.Image, opts Options) (*runtimespec.
 		annotations[k] = v
 	}
 
+	specVersion := opts.SpecVersion
+	if specVersion == "" {
+		specVersion = runtimespec.Version
+	}
+
 	spec := &runtimespec.Spec{
-		Version:     runtimespec.Version,
+		Version:     specVersion,
 		Process:     proc,
 		Root:        &runtimespec.Root{Path: opts.RootFS, Readonly: c.HostConfig.ReadonlyRootfs},
 		Hostname:    b.hostname,

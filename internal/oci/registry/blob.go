@@ -95,6 +95,10 @@ type resumableBlob struct {
 	off      int64
 	attempts int
 	closed   bool
+	// pending is a fatal error that was discovered after some bytes had
+	// already been read; those bytes are delivered first and the error is
+	// returned by the following Read.
+	pending error
 }
 
 // Read implements io.Reader, transparently resuming a broken download.
@@ -102,8 +106,14 @@ func (b *resumableBlob) Read(p []byte) (int, error) {
 	if b.closed {
 		return 0, errors.New("registry: blob reader is closed")
 	}
+	if b.pending != nil {
+		return 0, b.pending
+	}
 	for {
 		if b.rc == nil {
+			if b.total > 0 && b.off >= b.total {
+				return 0, io.EOF
+			}
 			if err := b.open(); err != nil {
 				return 0, err
 			}
@@ -115,26 +125,35 @@ func (b *resumableBlob) Read(p []byte) (int, error) {
 		if err == nil || errors.Is(err, io.EOF) {
 			return n, err
 		}
-		if n > 0 {
-			// Hand over the bytes that did arrive; the next Read decides
-			// whether to resume.
-			b.rc.Close()
-			b.rc = nil
-			return n, nil
-		}
-		if !b.canResume(err) {
-			return 0, fmt.Errorf("registry: reading blob %s from %s at offset %d: %w",
-				content.ShortDigest(b.digest), b.ref.FamiliarString(), b.off, err)
-		}
+		wrapped := b.readError(err)
+		resumable := b.canResume(err)
 		b.rc.Close()
 		b.rc = nil
 		b.attempts++
+
+		if n > 0 {
+			// Hand over the bytes that did arrive; the next Read either
+			// resumes or reports the failure.
+			if !resumable {
+				b.pending = wrapped
+			}
+			return n, nil
+		}
+		if !resumable {
+			return 0, wrapped
+		}
 		select {
 		case <-b.ctx.Done():
 			return 0, b.ctx.Err()
 		case <-time.After(b.client.backoff(b.attempts - 1)):
 		}
 	}
+}
+
+// readError annotates a mid-stream failure with what was being read.
+func (b *resumableBlob) readError(err error) error {
+	return fmt.Errorf("registry: reading blob %s from %s at offset %d: %w",
+		content.ShortDigest(b.digest), b.ref.FamiliarString(), b.off, err)
 }
 
 // canResume reports whether a mid-stream failure is worth a Range retry.

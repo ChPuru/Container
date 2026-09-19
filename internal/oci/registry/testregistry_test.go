@@ -762,3 +762,14 @@ func sortStrings(s []string) {
 		}
 	}
 }
+
+// countRequestsLocked is countRequests for callers that already hold f.mu.
+func (f *fakeRegistry) countRequestsLocked(substr string) int {
+	n := 0
+	for _, r := range f.Requests {
+		if strings.Contains(r, substr) {
+			n++
+		}
+	}
+	return n
+}

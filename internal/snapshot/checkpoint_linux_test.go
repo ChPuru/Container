@@ -443,6 +443,42 @@ func TestCopyTreePreservesDirectoryModes(t *testing.T) {
 	}
 }
 
+// TestCopyTreePreservesTimestamps matters twice over: a checkpoint that loses
+// mtimes is not a faithful copy of the container's filesystem, and
+// DiffCheckpoints uses mtime to decide whether a file was modified.
+func TestCopyTreePreservesTimestamps(t *testing.T) {
+	ctx := context.Background()
+	s := newTestSnapshotter(t)
+	src := filepath.Join(shortTempRoot(t), "src")
+	if err := os.MkdirAll(filepath.Join(src, "d"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	mustWrite(t, filepath.Join(src, "d", "f"), "body")
+	if err := os.Symlink("f", filepath.Join(src, "d", "l")); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+	stamp := []unix.Timespec{{Sec: 1500000000, Nsec: 123456789}, {Sec: 1500000001, Nsec: 987654321}}
+	for _, rel := range []string{"d/f", "d/l", "d"} {
+		if err := unix.UtimesNanoAt(unix.AT_FDCWD, filepath.Join(src, rel), stamp, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+			t.Fatalf("set times on %s: %v", rel, err)
+		}
+	}
+
+	dst := filepath.Join(shortTempRoot(t), "dst")
+	if _, err := s.copyTree(ctx, src, dst, false); err != nil {
+		t.Fatalf("copyTree: %v", err)
+	}
+	for _, rel := range []string{"d/f", "d/l", "d"} {
+		var st unix.Stat_t
+		if err := unix.Lstat(filepath.Join(dst, rel), &st); err != nil {
+			t.Fatalf("lstat %s: %v", rel, err)
+		}
+		if st.Mtim.Sec != stamp[1].Sec || st.Mtim.Nsec != stamp[1].Nsec {
+			t.Fatalf("%s mtime = %d.%09d, want %d.%09d", rel, st.Mtim.Sec, st.Mtim.Nsec, stamp[1].Sec, stamp[1].Nsec)
+		}
+	}
+}
+
 func TestCopyTreeKeepsHardlinksLinked(t *testing.T) {
 	ctx := context.Background()
 	s := newTestSnapshotter(t)

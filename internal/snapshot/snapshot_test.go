@@ -313,6 +313,8 @@ func TestValidateName(t *testing.T) {
 		{in: "", wantErr: true},
 		{in: ".", wantErr: true},
 		{in: "..", wantErr: true},
+		{in: ".hidden", wantErr: true},
+		{in: ".v1.tmp-1234", wantErr: true},
 		{in: "a/b", wantErr: true},
 		{in: "a b", wantErr: true},
 		{in: "a\x00b", wantErr: true},

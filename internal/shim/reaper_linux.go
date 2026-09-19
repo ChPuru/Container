@@ -203,6 +203,9 @@ func runProcess(ctx context.Context, r *reaper, argv []string, env []string, dir
 	if len(argv) == 0 {
 		return 0, nil, errors.New("shim: runProcess needs a command")
 	}
+	if r == nil {
+		return 0, nil, errors.New("shim: runProcess was called before the reaper was installed")
+	}
 
 	attr := &os.ProcAttr{Dir: dir, Env: env, Files: files}
 

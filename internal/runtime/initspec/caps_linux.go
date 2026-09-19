@@ -31,46 +31,59 @@ func KernelLastCap() int {
 	return n
 }
 
-// ApplyCapabilities installs the five capability sets on the calling process,
-// in the only order that works:
-//
-//  1. the bounding set is shrunk first, with PR_CAPBSET_DROP, because a
-//     capability left in the bounding set can be regained across execve;
-//  2. capset(2) then sets effective, permitted and inheritable together;
-//  3. the ambient set is cleared and raised last, because a capability can
-//     only be made ambient once it is both permitted and inheritable.
-//
-// A nil caps argument drops everything: no bounding, no permitted, no ambient.
-// That is the safe reading of "the spec did not ask for any capability".
-func ApplyCapabilities(caps *runtimespec.LinuxCapabilities) error {
-	var bounding, effective, permitted, inheritable, ambient capMask
-	var err error
-	if caps != nil {
-		if bounding, err = maskOf(caps.Bounding); err != nil {
-			return err
-		}
-		if effective, err = maskOf(caps.Effective); err != nil {
-			return err
-		}
-		if permitted, err = maskOf(caps.Permitted); err != nil {
-			return err
-		}
-		if inheritable, err = maskOf(caps.Inheritable); err != nil {
-			return err
-		}
-		if ambient, err = maskOf(caps.Ambient); err != nil {
-			return err
-		}
-	}
+// capSets is the five sets resolved to bit masks.
+type capSets struct {
+	bounding, effective, permitted, inheritable, ambient capMask
+}
 
+func resolveCaps(caps *runtimespec.LinuxCapabilities) (capSets, error) {
+	var s capSets
+	if caps == nil {
+		return s, nil
+	}
+	var err error
+	if s.bounding, err = maskOf(caps.Bounding); err != nil {
+		return s, err
+	}
+	if s.effective, err = maskOf(caps.Effective); err != nil {
+		return s, err
+	}
+	if s.permitted, err = maskOf(caps.Permitted); err != nil {
+		return s, err
+	}
+	if s.inheritable, err = maskOf(caps.Inheritable); err != nil {
+		return s, err
+	}
+	if s.ambient, err = maskOf(caps.Ambient); err != nil {
+		return s, err
+	}
+	return s, nil
+}
+
+// ApplyBoundingSet shrinks the capability bounding set to exactly the
+// capabilities the spec asks for.
+//
+// It must run BEFORE the switch to the container's uid, because
+// PR_CAPBSET_DROP needs CAP_SETPCAP in the *effective* set and changing uid
+// clears effective. Dropping the bounding set is the half that matters most:
+// a capability left in it can be regained across an execve of a file with
+// file capabilities.
+//
+// A nil caps argument means "no capabilities at all", which is the safe
+// reading of a spec that asked for none.
+func ApplyBoundingSet(caps *runtimespec.LinuxCapabilities) error {
+	sets, err := resolveCaps(caps)
+	if err != nil {
+		return err
+	}
 	last := KernelLastCap()
 	for bit := 0; bit <= last; bit++ {
-		if bounding.has(bit) {
+		if sets.bounding.has(bit) {
 			continue
 		}
 		if err := unix.Prctl(unix.PR_CAPBSET_DROP, uintptr(bit), 0, 0, 0); err != nil {
 			if err == unix.EINVAL {
-				// The kernel does not implement this bit; nothing to drop.
+				// The kernel does not implement this bit.
 				continue
 			}
 			if err == unix.EPERM {
@@ -80,15 +93,30 @@ func ApplyCapabilities(caps *runtimespec.LinuxCapabilities) error {
 			return fmt.Errorf("initspec: prctl(PR_CAPBSET_DROP, %d): %w", bit, err)
 		}
 	}
+	return nil
+}
 
+// ApplyCapSets installs the effective, permitted, inheritable and ambient
+// sets. It must run AFTER the uid switch, so the sets it installs are the ones
+// the container process actually keeps; raising effective bits that are
+// already permitted needs no privilege, which is why this half works as the
+// unprivileged container user.
+//
+// The ambient set is applied last because a capability can only be made
+// ambient once it is both permitted and inheritable.
+func ApplyCapSets(caps *runtimespec.LinuxCapabilities) error {
+	sets, err := resolveCaps(caps)
+	if err != nil {
+		return err
+	}
 	hdr := unix.CapUserHeader{Version: unix.LINUX_CAPABILITY_VERSION_3, Pid: 0}
 	var data [2]unix.CapUserData
-	data[0].Effective, data[1].Effective = effective.lo(), effective.hi()
-	data[0].Permitted, data[1].Permitted = permitted.lo(), permitted.hi()
-	data[0].Inheritable, data[1].Inheritable = inheritable.lo(), inheritable.hi()
+	data[0].Effective, data[1].Effective = sets.effective.lo(), sets.effective.hi()
+	data[0].Permitted, data[1].Permitted = sets.permitted.lo(), sets.permitted.hi()
+	data[0].Inheritable, data[1].Inheritable = sets.inheritable.lo(), sets.inheritable.hi()
 	if err := unix.Capset(&hdr, &data[0]); err != nil {
 		return fmt.Errorf("initspec: capset(effective=%#x permitted=%#x inheritable=%#x): %w",
-			uint64(effective), uint64(permitted), uint64(inheritable), err)
+			uint64(sets.effective), uint64(sets.permitted), uint64(sets.inheritable), err)
 	}
 
 	// PR_CAP_AMBIENT_CLEAR_ALL is unavailable before 4.3; on such a kernel
@@ -97,11 +125,12 @@ func ApplyCapabilities(caps *runtimespec.LinuxCapabilities) error {
 		err != unix.EINVAL {
 		return fmt.Errorf("initspec: prctl(PR_CAP_AMBIENT_CLEAR_ALL): %w", err)
 	}
+	last := KernelLastCap()
 	for bit := 0; bit <= last; bit++ {
-		if !ambient.has(bit) {
+		if !sets.ambient.has(bit) {
 			continue
 		}
-		if !permitted.has(bit) || !inheritable.has(bit) {
+		if !sets.permitted.has(bit) || !sets.inheritable.has(bit) {
 			return fmt.Errorf("initspec: capability bit %d is in the ambient set but not in both "+
 				"permitted and inheritable; the kernel would refuse to raise it", bit)
 		}
@@ -110,6 +139,15 @@ func ApplyCapabilities(caps *runtimespec.LinuxCapabilities) error {
 		}
 	}
 	return nil
+}
+
+// ApplyCapabilities does both halves in one call, for a caller that is not
+// changing uid in between.
+func ApplyCapabilities(caps *runtimespec.LinuxCapabilities) error {
+	if err := ApplyBoundingSet(caps); err != nil {
+		return err
+	}
+	return ApplyCapSets(caps)
 }
 
 // SetKeepCaps sets or clears PR_SET_KEEPCAPS, which decides whether the

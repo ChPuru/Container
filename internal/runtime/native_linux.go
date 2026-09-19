@@ -101,7 +101,7 @@ func NewNative(root string, features Features) (*NativeRuntime, error) {
 	if err := os.MkdirAll(abs, 0o700); err != nil {
 		return nil, fmt.Errorf("runtime: create native state root %s: %w", abs, err)
 	}
-	if (features == Features{}) || features.Kernel == "" {
+	if features.Kernel == "" {
 		probed, perr := ProbeFeatures(context.Background())
 		if perr != nil {
 			return nil, fmt.Errorf("runtime: probe kernel features: %w", perr)
@@ -468,9 +468,14 @@ func (r *NativeRuntime) buildCommand(c *nativeContainer, spec *runtimespec.Spec,
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = opts.Stdin, opts.Stdout, opts.Stderr
 	}
 
+	pidfd := -1
 	sys := &syscall.SysProcAttr{
 		Cloneflags: flags,
 		Setsid:     true,
+		// Ask the kernel for a pidfd at clone time. It is the only way to
+		// get one that cannot possibly refer to a recycled pid, because it
+		// is created before the child can exit.
+		PidFD: &pidfd,
 	}
 	if userns {
 		uid, gid := idMappings(spec)
@@ -724,7 +729,6 @@ func (r *NativeRuntime) Kill(ctx context.Context, id string, sig syscall.Signal,
 	}
 	c.mu.Lock()
 	exited := c.status.Exited
-	pidfd := c.pidfd
 	cg := c.cg
 	c.mu.Unlock()
 	if exited {

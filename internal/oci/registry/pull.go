@@ -113,7 +113,7 @@ func (c *Client) Pull(ctx context.Context, ref reference.Reference, store *conte
 		return nil, errors.New("registry: Pull requires a content store")
 	}
 
-	desc, manifestBytes, err := c.Resolve(ctx, ref, plat)
+	root, desc, manifestBytes, err := c.ResolveAll(ctx, ref, plat)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,11 @@ func (c *Client) Pull(ctx context.Context, ref reference.Reference, store *conte
 		tagged := reference.Reference{Domain: ref.Domain, Path: ref.Path, Tag: ref.Tag}
 		img.RepoTags = []string{tagged.FamiliarString()}
 	}
-	pinned := reference.Reference{Domain: ref.Domain, Path: ref.Path, Digest: desc.Digest}
+	// RepoDigests names the digest the whole reference resolves to, which for
+	// a multi-platform tag is the index rather than the per-platform manifest.
+	// That is the digest a user can re-pull the same image by, and the one
+	// hull.lock pins.
+	pinned := reference.Reference{Domain: ref.Domain, Path: ref.Path, Digest: root.Digest}
 	img.RepoDigests = []string{pinned.FamiliarString()}
 
 	return img, nil

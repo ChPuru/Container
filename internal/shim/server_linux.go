@@ -182,10 +182,21 @@ func (s *server) handle(conn net.Conn) {
 // reply writes one response frame.
 func (s *server) reply(conn net.Conn, resp Response) {
 	_ = conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
-	if err := WriteJSONFrame(conn, KindResponse, resp); err != nil {
+	if err := WriteJSONFrame(conn, KindResponse, resp); err != nil && !clientGone(err) {
 		log.Printf("shim: write response: %v", err)
 	}
 	_ = conn.SetWriteDeadline(time.Time{})
+}
+
+// clientGone reports whether err is just a client that hung up. It is the
+// normal end of an abandoned Wait or a closed attach, not something worth a
+// line in the shim log.
+func clientGone(err error) bool {
+	return errors.Is(err, net.ErrClosed) ||
+		errors.Is(err, syscall.EPIPE) ||
+		errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, io.EOF) ||
+		errors.Is(err, os.ErrDeadlineExceeded)
 }
 
 // replyErr writes a success or an error response.
@@ -301,10 +312,14 @@ func (s *server) startStream(conn net.Conn, a *Attacher, detachKeys []byte) {
 		defer conn.Close()
 		defer a.Detach(nil)
 
-		var writerDone sync.WaitGroup
-		writerDone.Add(1)
+		writerDone := make(chan struct{})
 		go func() {
-			defer writerDone.Done()
+			defer close(writerDone)
+			// However this goroutine ends, the stream is over, so unblock the
+			// stdin reader below rather than leaving the connection half-open
+			// until the client happens to hang up.
+			defer func() { _ = conn.SetReadDeadline(time.Now()) }()
+
 			for c := range a.Chunks() {
 				if err := WriteFrame(conn, c.Stream, c.Data); err != nil {
 					a.Detach(nil)
@@ -322,7 +337,7 @@ func (s *server) startStream(conn net.Conn, a *Attacher, detachKeys []byte) {
 		// The client is gone or detached: drop the attacher so the writer
 		// goroutine's channel closes.
 		a.Detach(a.Err())
-		writerDone.Wait()
+		<-writerDone
 	}()
 }
 

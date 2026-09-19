@@ -383,3 +383,47 @@ func TestValidateManifestTarget(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveAllReportsTheRootDescriptor(t *testing.T) {
+	f := newFakeRegistry(t)
+	amd := buildImage(t, linux("amd64"), imagespec.MediaTypeImageManifest, 8)
+	f.AddImage(amd)
+	idxDesc, idxBody := buildIndex(t, imagespec.MediaTypeImageIndex, amd.ManifestDesc)
+	f.AddManifest(idxDesc.MediaType, idxBody)
+	f.Tag("library/alpine", "3.20", idxDesc.Digest)
+
+	c := f.Client(Options{})
+	plat := linux("amd64")
+	root, sel, body, err := c.ResolveAll(context.Background(), f.Ref("library/alpine:3.20"), &plat)
+	if err != nil {
+		t.Fatalf("ResolveAll: %v", err)
+	}
+	if root.Digest != idxDesc.Digest {
+		t.Errorf("root = %s, want the index %s", root.Digest, idxDesc.Digest)
+	}
+	if !imagespec.IsManifestList(root.MediaType) {
+		t.Errorf("root media type = %s, want an index", root.MediaType)
+	}
+	if sel.Digest != amd.ManifestDesc.Digest {
+		t.Errorf("selected = %s, want %s", sel.Digest, amd.ManifestDesc.Digest)
+	}
+	if string(body) != string(amd.ManifestJSON) {
+		t.Error("body is not the selected manifest")
+	}
+}
+
+func TestResolveAllRootEqualsSelectedForASinglePlatformImage(t *testing.T) {
+	f := newFakeRegistry(t)
+	img := buildImage(t, linux("amd64"), imagespec.MediaTypeImageManifest, 8)
+	dgst := f.AddImage(img)
+	f.Tag("library/single", "1", dgst)
+
+	c := f.Client(Options{})
+	root, sel, _, err := c.ResolveAll(context.Background(), f.Ref("library/single:1"), nil)
+	if err != nil {
+		t.Fatalf("ResolveAll: %v", err)
+	}
+	if root.Digest != sel.Digest {
+		t.Errorf("root %s != selected %s", root.Digest, sel.Digest)
+	}
+}
