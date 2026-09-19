@@ -489,6 +489,16 @@ func (r *NativeRuntime) buildCommand(c *nativeContainer, spec *runtimespec.Spec,
 		// container cannot drop a supplementary group to gain access to a
 		// host file (CVE-2014-8989).
 		sys.GidMappingsEnableSetgroups = false
+		// The child is born with a full capability set in its new user
+		// namespace, but the host uid it carries is almost certainly not
+		// in the map it was just given - so it is the overflow uid, and
+		// execve of a file without file capabilities would drop every
+		// capability it needs to build the container. Switching to uid 0
+		// *inside the new namespace* first, which the kernel allows while
+		// the capabilities are still held, is what keeps them across the
+		// exec. Go applies this after writing the mappings and before
+		// execve, which is exactly the window it has to happen in.
+		sys.Credential = &syscall.Credential{Uid: 0, Gid: 0, NoSetGroups: true}
 	}
 	if c.cg != nil && r.features.CloneIntoCgroup {
 		fd, ferr := c.cg.FD()

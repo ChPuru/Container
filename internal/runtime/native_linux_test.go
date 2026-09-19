@@ -558,6 +558,13 @@ func TestNativeUserNamespace(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
+	// The container runs as host uid 100000, so the rootfs and every
+	// directory above it must be reachable by that uid. Real hull does this
+	// by extracting layers into the container's own id range; the test does
+	// it directly.
+	chownTree(t, rootfs, 100000, 100000)
+	openParents(t, rootfs)
+
 	spec := e2eSpec(rootfs, []string{"/bin/sh", "-c", "id -u; cat /proc/self/uid_map"})
 	spec.Linux.Namespaces = append(spec.Linux.Namespaces,
 		runtimespec.LinuxNamespace{Type: runtimespec.UserNamespace})
@@ -740,4 +747,31 @@ func (l *lockedWriter) Write(p []byte) (int, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.w.Write(p)
+}
+
+// chownTree gives every entry under dir to uid:gid, the way a layer extracted
+// into a container's own id range would already be owned.
+func chownTree(t *testing.T, dir string, uid, gid int) {
+	t.Helper()
+	err := filepath.Walk(dir, func(p string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		return os.Lchown(p, uid, gid)
+	})
+	if err != nil {
+		t.Fatalf("chown %s: %v", dir, err)
+	}
+}
+
+// openParents makes every ancestor of dir traversable, because Go's t.TempDir
+// creates 0700 directories owned by the test user and the container is not
+// that user.
+func openParents(t *testing.T, dir string) {
+	t.Helper()
+	for p := dir; p != "/" && p != "."; p = filepath.Dir(p) {
+		if err := os.Chmod(p, 0o755); err != nil {
+			t.Fatalf("chmod %s: %v", p, err)
+		}
+	}
 }

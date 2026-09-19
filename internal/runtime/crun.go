@@ -37,6 +37,7 @@ type CrunRuntime struct {
 
 	mu       sync.Mutex
 	features *RuntimeFeatures
+	warnings []string
 }
 
 // compile-time assertion that the driver satisfies the interface.
@@ -205,7 +206,27 @@ func (r *CrunRuntime) Create(ctx context.Context, id, bundleDir string, opts Cre
 	}
 	args = append(args, id)
 
-	if _, err := r.run(ctx, bundleFor(opts.Stdin, opts.Stdout, opts.Stderr, opts.ExtraFiles), args...); err != nil {
+	_, err = r.run(ctx, bundleFor(opts.Stdin, opts.Stdout, opts.Stderr, opts.ExtraFiles), args...)
+	if err != nil && isVersionRefusal(err) {
+		// crun and runc validate ociVersion against a fixed list and
+		// refuse anything newer than the release they shipped with, so a
+		// bundle written to runtime-spec 1.2 is rejected outright by
+		// crun 1.14. Rather than fail a container the binary could
+		// perfectly well run, hull writes a compatibility copy of
+		// config.json - the same bundle with an older version string and
+		// an absolute root path - into its own state directory and
+		// retries against that. The operator is told, because it means
+		// the runtime is older than the spec hull emits.
+		compat, cerr := r.compatBundle(id, abs)
+		if cerr != nil {
+			return nil, fmt.Errorf("%w (and the compatibility rewrite failed: %v)", err, cerr)
+		}
+		r.warn(fmt.Sprintf("%s rejected runtime-spec %s; hull retried with a downgraded config.json "+
+			"at %s. Upgrade %s for native support.", r.name, runtimespec.Version, compat, r.name))
+		retry := append([]string{"create", "--bundle", compat}, args[3:]...)
+		_, err = r.run(ctx, bundleFor(opts.Stdin, opts.Stdout, opts.Stderr, opts.ExtraFiles), retry...)
+	}
+	if err != nil {
 		if strings.Contains(err.Error(), "exists") {
 			return nil, fmt.Errorf("%w: %s", ErrExists, err)
 		}
@@ -289,6 +310,7 @@ func (r *CrunRuntime) Delete(ctx context.Context, id string, force bool) error {
 	}
 	args = append(args, id)
 	_, err := r.run(ctx, nil, args...)
+	_ = os.RemoveAll(filepath.Join(r.root, id+".bundle"))
 	if err != nil && errors.Is(mapCrunError(err, id), ErrNotFound) {
 		// Deleting something that is already gone is a success.
 		return nil
@@ -409,6 +431,7 @@ func (r *CrunRuntime) Features(ctx context.Context) (RuntimeFeatures, error) {
 		f.Warnings = append(f.Warnings, perr.Error())
 	}
 	f.Warnings = append(f.Warnings, probe.Warnings...)
+	f.Warnings = append(f.Warnings, r.Warnings()...)
 
 	out, err := r.run(ctx, nil, "features")
 	if err == nil {
@@ -478,4 +501,78 @@ func mapCrunError(err error, id string) error {
 // a caller-supplied context.
 func contextWithTimeout(d time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), d)
+}
+
+// compatOCIVersion is the newest runtime-spec version every crun and runc
+// release in the field accepts. It is only used when the installed binary
+// refuses the version hull actually writes.
+const compatOCIVersion = "1.0.2"
+
+// isVersionRefusal recognises the way crun and runc reject a runtime-spec
+// version they do not know.
+func isVersionRefusal(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unknown version") ||
+		strings.Contains(msg, "unsupported version") ||
+		strings.Contains(msg, "ociversion")
+}
+
+// compatBundle writes a copy of the bundle's config.json into the runtime
+// state directory with an ociVersion the installed binary accepts and an
+// absolute root path, and returns the directory holding it.
+//
+// Only the version string and the root path are changed; every other field is
+// carried through byte for byte, so nothing about the container's isolation is
+// altered by the rewrite.
+func (r *CrunRuntime) compatBundle(id, bundleDir string) (string, error) {
+	raw, err := os.ReadFile(filepath.Join(bundleDir, ConfigFileName))
+	if err != nil {
+		return "", fmt.Errorf("runtime: read %s for the compatibility rewrite: %w", bundleDir, err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return "", fmt.Errorf("runtime: parse %s for the compatibility rewrite: %w", bundleDir, err)
+	}
+	doc["ociVersion"] = compatOCIVersion
+	if root, ok := doc["root"].(map[string]any); ok {
+		if p, ok := root["path"].(string); ok && !filepath.IsAbs(p) {
+			root["path"] = filepath.Join(bundleDir, p)
+		}
+	}
+	out := filepath.Join(r.root, id+".bundle")
+	if err := os.MkdirAll(out, 0o700); err != nil {
+		return "", fmt.Errorf("runtime: create the compatibility bundle dir: %w", err)
+	}
+	b, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("runtime: encode the compatibility config: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(out, ConfigFileName), b, 0o600); err != nil {
+		return "", fmt.Errorf("runtime: write the compatibility config: %w", err)
+	}
+	return out, nil
+}
+
+// warn records a host problem the operator should know about. Warnings are
+// deduplicated so a per-container problem is reported once.
+func (r *CrunRuntime) warn(s string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, w := range r.warnings {
+		if w == s {
+			return
+		}
+	}
+	r.warnings = append(r.warnings, s)
+	r.features = nil
+}
+
+// Warnings returns everything the driver has found worth telling the operator.
+func (r *CrunRuntime) Warnings() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.warnings...)
 }
