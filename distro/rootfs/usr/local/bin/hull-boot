@@ -1,0 +1,62 @@
+#!/bin/sh
+# hull-boot — what WSL runs as root when the hull-engine distro starts.
+#
+# WSL's /init is PID 1 here (systemd is deliberately off), so this script is responsible for
+# the handful of things a normal init would do, and then for starting hulld under a keeper
+# that restarts it if it dies.
+set -eu
+
+LOG=/var/log/hull-boot.log
+exec >>"$LOG" 2>&1
+echo "=== hull-boot $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+
+# --- filesystems -----------------------------------------------------------------
+# WSL mounts a tmpfs on /sys/fs/cgroup but does not always give us a usable unified
+# hierarchy. Mount cgroup2 ourselves if it is missing; on a WSL 2.5.1+ kernel it is
+# already there and this is a no-op.
+if ! grep -q 'cgroup2 /sys/fs/cgroup ' /proc/mounts; then
+    if [ -d /sys/fs/cgroup/unified ]; then
+        echo "note: kernel is running hybrid cgroups; v2 is at /sys/fs/cgroup/unified"
+        echo "      run 'wsl --update' on the host for pure cgroup v2"
+    else
+        mkdir -p /sys/fs/cgroup
+        mount -t cgroup2 none /sys/fs/cgroup 2>/dev/null || \
+            echo "warn: could not mount cgroup2; resource limits will be unavailable"
+    fi
+fi
+
+mountpoint -q /proc || mount -t proc proc /proc
+mountpoint -q /sys  || mount -t sysfs sys /sys
+mountpoint -q /dev/pts || { mkdir -p /dev/pts; mount -t devpts devpts /dev/pts -o newinstance,ptmxmode=0666,mode=0620,gid=5 2>/dev/null || true; }
+
+# Containers need forwarding, and WSL does not turn it on for us.
+echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null || true
+# Bridged traffic must not be filtered by the host's iptables rules, or Docker Desktop's
+# FORWARD DROP policy silently eats packets between our veths.
+echo 0 > /proc/sys/net/bridge/bridge-nf-call-iptables 2>/dev/null || true
+
+mkdir -p /var/lib/hull /run/hull
+chmod 0700 /var/lib/hull
+
+# --- the shared socket -----------------------------------------------------------
+# /mnt/wsl is a tmpfs shared by every distro in the VM. Exposing the API socket there lets
+# your Ubuntu talk to the engine directly, with no Windows round trip.
+mkdir -p /mnt/wsl/hull
+
+# --- hulld -----------------------------------------------------------------------
+# A supervision loop rather than a bare exec: if hulld panics, containers keep running
+# (their shims are reparented to PID 1) and the daemon comes back and re-attaches.
+(
+    while true; do
+        /usr/local/bin/hulld \
+            --data-root /var/lib/hull \
+            --socket /run/hull/hull.sock \
+            --shared-socket /mnt/wsl/hull/hull.sock \
+            --shim /usr/local/lib/hull/hull-shim \
+            --init-binary /usr/local/lib/hull/hull-init \
+            || echo "hulld exited with $? — restarting in 2s"
+        sleep 2
+    done
+) &
+
+echo "hull-boot finished; hulld supervisor pid $!"
