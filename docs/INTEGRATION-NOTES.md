@@ -86,6 +86,30 @@ would defeat the `fstat` check guarding the console symlink-swap CVEs.
 `pid=1`, `CapEff a80425fb`, `NoNewPrivs 1`, `Seccomp 2`, a real cgroup2 filesystem inside,
 `mount` refused by hull's own hand-compiled cBPF filter, and `/proc/kcore` masked to zero bytes.
 
+## 1d. The spec version was negotiated against the wrong runtime — FIXED
+
+With everything else working, the engine still could not start a container:
+
+```
+shim: hull create failed with exit code 1:
+```
+
+— and an empty stderr, which is a bug in itself (the shim should surface what the runtime said).
+The generated `config.json` had `"ociVersion": "1.2.0"` despite the negotiation from note 1
+being implemented and correct.
+
+The negotiation was asking the wrong runtime. The engine picks the **native** driver, whose
+`OCIVersions` is hull's own `1.2.0` — so the negotiated answer was `1.2.0`. But the per-container
+shim is a separate process and always drives the **external** runtime binary, whatever the
+engine's own driver is. crun then rejected the bundle the engine had told itself was fine.
+
+The lesson generalises: negotiate against whatever actually *reads* the artefact, not against
+whichever component happens to be nearest.
+
+Fixed in `internal/engine`: `intersectSpecVersions` folds the external binary's range into the
+driver's before negotiating, so the version written is the lowest both will read. On this host
+that is `1.1.0` — crun's maximum, below hull's `1.2.0`.
+
 ## 2. `error obtaining VCS status: exit status 128` — FIXED
 
 Building any `cmd/` package inside WSL as root fails, because git refuses a repo owned by the

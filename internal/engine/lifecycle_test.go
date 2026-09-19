@@ -484,7 +484,7 @@ func TestExecRunsAndRecordsItsExitCode(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 	sup := te.spawner.supervisor(t, c.ID)
-	sup.execCode = 3
+	sup.setExecCode(3)
 
 	execID, err := te.Exec(ctx, c.ID, ExecConfig{Cmd: []string{"/bin/true"}})
 	if err != nil {
@@ -586,9 +586,7 @@ func TestHealthTransitionsAndEvents(t *testing.T) {
 	waitHealth(HealthHealthy)
 
 	// Break the probe: one failure is enough, because Retries is 1.
-	sup.mu.Lock()
-	sup.execCode = 1
-	sup.mu.Unlock()
+	sup.setExecCode(1)
 	waitHealth(HealthUnhealthy)
 
 	got, err := te.Inspect(ctx, c.ID)
@@ -626,7 +624,7 @@ func TestHealthStartPeriodDoesNotFailTheContainer(t *testing.T) {
 	if err := te.Start(ctx, c.ID, nil); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	te.spawner.supervisor(t, c.ID).execCode = 1
+	te.spawner.supervisor(t, c.ID).setExecCode(1)
 
 	// Several probes will have failed by now; inside the start period none of
 	// them may make the container unhealthy.

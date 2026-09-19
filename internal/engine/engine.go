@@ -364,8 +364,21 @@ func (e *Engine) selectRuntime(ctx context.Context) error {
 		e.log.Warn("hull: could not read the runtime's feature report", "runtime", e.runtimeName, "err", ferr)
 	}
 	e.runtimeVer = feats.Version
-	e.specVersion = NegotiateSpecVersion(runtimespec.Version, feats.OCIVersions)
 	e.hostWarnings = append(e.hostWarnings, feats.Warnings...)
+
+	// The spec version has to satisfy whatever actually *reads* the bundle, and
+	// that is not always e.driver: the shim drives the external runtime binary
+	// even when the engine's own driver is the native one. Negotiating against
+	// the native driver alone yields hull's newest version, which crun 1.14.1
+	// then rejects with a bare "unknown version specified". So fold in the
+	// external binary's range too and take the lowest common answer.
+	accepted := feats.OCIVersions
+	if crun != nil && crun != e.driver {
+		if cf, err := crun.Features(ctx); err == nil {
+			accepted = intersectSpecVersions(accepted, cf.OCIVersions)
+		}
+	}
+	e.specVersion = NegotiateSpecVersion(runtimespec.Version, accepted)
 
 	info, derr := cgroups.Detect()
 	if derr != nil && !errors.Is(derr, cgroups.ErrUnsupported) {
@@ -970,4 +983,46 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// intersectSpecVersions combines two drivers' accepted runtime-spec ranges into
+// one that satisfies both.
+//
+// Each list is a driver's own answer, which for crun is its [min, max] pair.
+// NegotiateSpecVersion only ever picks the highest entry, so the combination
+// that keeps both drivers happy is simply "the lower of the two maxima" —
+// expressed here as a one-element list so the caller's logic is unchanged.
+// An empty list on either side means that driver did not say, in which case the
+// other side's answer stands on its own.
+func intersectSpecVersions(a, b []string) []string {
+	ha := highestSpecVersion(a)
+	hb := highestSpecVersion(b)
+	switch {
+	case ha == "":
+		return b
+	case hb == "":
+		return a
+	case compareVersions(ha, hb) <= 0:
+		return []string{ha}
+	default:
+		return []string{hb}
+	}
+}
+
+// highestSpecVersion returns the greatest parsable version in the list, or "".
+func highestSpecVersion(list []string) string {
+	best := ""
+	for _, raw := range list {
+		v := strings.TrimSpace(raw)
+		if i := strings.IndexAny(v, "+-"); i > 0 {
+			v = v[:i]
+		}
+		if v == "" || !looksLikeVersion(v) {
+			continue
+		}
+		if best == "" || compareVersions(v, best) > 0 {
+			best = v
+		}
+	}
+	return best
 }

@@ -61,7 +61,7 @@ type listFilter struct {
 	status   []string
 	names    []string
 	ids      []string
-	labels   map[string]*string
+	labels   []labelTerm
 	ancestor map[string]bool
 	networks map[string]bool
 	volumes  map[string]bool
@@ -90,21 +90,11 @@ func (e *Engine) compileListFilters(opts ListOptions, all []*types.Container) (*
 			return nil, fmt.Errorf("%w: unknown status filter %q", ErrInvalid, s)
 		}
 	}
-	if len(opts.Label) > 0 {
-		f.labels = make(map[string]*string, len(opts.Label))
-		for _, l := range opts.Label {
-			k, v, hasValue := strings.Cut(l, "=")
-			if k == "" {
-				return nil, fmt.Errorf("%w: empty label filter", ErrInvalid)
-			}
-			if hasValue {
-				val := v
-				f.labels[k] = &val
-			} else {
-				f.labels[k] = nil
-			}
-		}
+	labels, err := parseLabelFilters(opts.Label)
+	if err != nil {
+		return nil, err
 	}
+	f.labels = labels
 	if len(opts.Ancestor) > 0 {
 		f.ancestor = make(map[string]bool, len(opts.Ancestor))
 		for _, a := range opts.Ancestor {
@@ -153,7 +143,6 @@ func (e *Engine) compileListFilters(opts ListOptions, all []*types.Container) (*
 		}
 		return nil, fmt.Errorf("%w: no such container: %s", ErrNotFound, names[0])
 	}
-	var err error
 	if f.before, err = anchor(opts.Before); err != nil {
 		return nil, err
 	}
@@ -179,14 +168,8 @@ func (f *listFilter) match(c *types.Container) bool {
 	if len(f.ids) > 0 && !anyPrefix(f.ids, c.ID) {
 		return false
 	}
-	for k, want := range f.labels {
-		got, ok := c.Config.Labels[k]
-		if !ok {
-			return false
-		}
-		if want != nil && got != *want {
-			return false
-		}
+	if !matchLabels(f.labels, c.Config.Labels) {
+		return false
 	}
 	if f.ancestor != nil && !f.ancestor[c.Image] && !f.ancestor[c.ImageRef] {
 		return false

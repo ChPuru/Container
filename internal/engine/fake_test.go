@@ -158,13 +158,20 @@ func newFakeSupervisor(id string, pid int) *fakeSupervisor {
 
 // Start releases the container.
 func (f *fakeSupervisor) Start(ctx context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.startErr != nil {
 		return f.startErr
 	}
-	f.mu.Lock()
 	f.started = true
-	f.mu.Unlock()
 	return nil
+}
+
+// setExecCode sets the exit code every later exec reports.
+func (f *fakeSupervisor) setExecCode(code int) {
+	f.mu.Lock()
+	f.execCode = code
+	f.mu.Unlock()
 }
 
 // State reports the container's state.
@@ -257,11 +264,14 @@ func (f *fakeSupervisor) Attach(ctx context.Context, opts shim.AttachOptions) (S
 
 // Exec starts an in-memory process.
 func (f *fakeSupervisor) Exec(ctx context.Context, execID string, spec []byte, opts shim.AttachOptions) (ExecHandle, error) {
-	if f.execErr != nil {
-		return nil, f.execErr
+	f.mu.Lock()
+	execErr, code, pid := f.execErr, f.execCode, f.pid
+	f.mu.Unlock()
+	if execErr != nil {
+		return nil, execErr
 	}
 	s := newFakeStream(opts, false)
-	h := &fakeExec{fakeStream: s, pid: f.pid + 1, exitCode: f.execCode, resized: make(chan [2]uint16, 4)}
+	h := &fakeExec{fakeStream: s, pid: pid + 1, exitCode: code, resized: make(chan [2]uint16, 4)}
 	// A probe that reads output must see EOF, so the stream is closed as soon
 	// as it is handed over.
 	go s.Close()
@@ -828,10 +838,12 @@ func newTestEngine(t *testing.T) *testEngine {
 	t.Helper()
 	root := t.TempDir()
 
+	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
 	st, err := state.Open(root)
 	if err != nil {
 		t.Fatalf("open state store: %v", err)
 	}
+	st.SetLogger(quiet)
 	t.Cleanup(func() { _ = st.Close() })
 
 	cs, err := content.NewStore(filepath.Join(root, "content"))
@@ -859,7 +871,7 @@ func newTestEngine(t *testing.T) *testEngine {
 			MaxConcurrentPulls: 2,
 			LogConfig:          types.LogConfig{Type: "json-file"},
 		},
-		log:           slog.New(slog.NewTextHandler(io.Discard, nil)),
+		log:           quiet,
 		state:         st,
 		content:       cs,
 		snaps:         te.snaps,

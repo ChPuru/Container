@@ -162,35 +162,45 @@ func (e *Engine) Images(ctx context.Context, opts ImageListOptions) ([]*types.Im
 	return out, nil
 }
 
-// parseLabelFilters turns "key" and "key=value" terms into a lookup table.
-func parseLabelFilters(in []string) (map[string]*string, error) {
+// labelTerm is one parsed "key" or "key=value" label filter.
+//
+// The terms are a slice rather than a map because Docker ANDs them all, and
+// two terms may name the same key: "label=tier=web label=tier=db" must match
+// nothing at all, which a map keyed by label name silently turns into "match
+// tier=db".
+type labelTerm struct {
+	// key is the label name.
+	key string
+	// value is the required value, meaningful only when hasValue is set.
+	value string
+	// hasValue distinguishes "the label exists" from "the label equals".
+	hasValue bool
+}
+
+// parseLabelFilters turns "key" and "key=value" terms into a filter list.
+func parseLabelFilters(in []string) ([]labelTerm, error) {
 	if len(in) == 0 {
 		return nil, nil
 	}
-	out := make(map[string]*string, len(in))
+	out := make([]labelTerm, 0, len(in))
 	for _, l := range in {
 		k, v, hasValue := strings.Cut(l, "=")
 		if k == "" {
 			return nil, fmt.Errorf("%w: empty label filter", ErrInvalid)
 		}
-		if hasValue {
-			val := v
-			out[k] = &val
-		} else {
-			out[k] = nil
-		}
+		out = append(out, labelTerm{key: k, value: v, hasValue: hasValue})
 	}
 	return out, nil
 }
 
 // matchLabels reports whether every label term is satisfied.
-func matchLabels(want map[string]*string, got map[string]string) bool {
-	for k, v := range want {
-		actual, ok := got[k]
+func matchLabels(want []labelTerm, got map[string]string) bool {
+	for _, term := range want {
+		actual, ok := got[term.key]
 		if !ok {
 			return false
 		}
-		if v != nil && actual != *v {
+		if term.hasValue && actual != term.value {
 			return false
 		}
 	}
