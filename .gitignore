@@ -4,3 +4,4 @@
 *.tar
 *.tgz
 /test/tmp/
+/.scratch-doctor/
