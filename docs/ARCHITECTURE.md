@@ -132,9 +132,17 @@ before the engine was written, so the design is not resting on assumptions:
   `.wh.<name>`.
 - **Networking** — a bridge plus a veth pair with one end moved into a fresh network namespace
   passes traffic to the gateway, and an `inet` nftables table can be created and dropped cleanly.
-- **cgroups** — `/sys/fs/cgroup/cgroup.controllers` is **empty**, confirming the hybrid-cgroup
-  problem. Resource limits will not work until `wsl --update` or `cgroup_no_v1=all`, and
-  `hull doctor` must say so rather than failing at `run` time.
+- **Native-runtime primitives** — a probe exercised every syscall the hand-written runtime is
+  designed around, and all of them work here on 5.15: `openat2` with
+  `RESOLVE_IN_ROOT|RESOLVE_NO_MAGICLINKS` (and it correctly refuses an absolute symlink that
+  would escape the root), `pidfd_open` + `pidfd_send_signal`, `close_range`, `memfd_create` with
+  the full seal set, `clone3`, `fsopen`/`fsmount`, `no_new_privs` followed by a cBPF `seccomp`
+  filter, and a user + pid + net + mount + uts + ipc namespace set with uid/gid mappings written
+  from the parent and `setgroups` denied. **The security design does not need a newer kernel.**
+- **cgroups** — the one thing that does not work. `/sys/fs/cgroup/cgroup.controllers` does not
+  even exist (v2 is at `/sys/fs/cgroup/unified` with an empty controller set), confirming the
+  hybrid-cgroup problem. Resource limits will not work until `wsl --update` or
+  `cgroup_no_v1=all`, and `hull doctor` must say so up front rather than failing at `run` time.
 - **Registry** — the full Docker Hub flow works from this network over IPv4: an unauthenticated
   manifest request returns `401` with a parseable `WWW-Authenticate`, the token dance succeeds,
   and `library/alpine:3.20` comes back as an `application/vnd.oci.image.index.v1+json` with 16
