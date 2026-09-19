@@ -365,6 +365,11 @@ type Status struct {
 	// is false the volume side is being polled too.
 	Watching bool
 
+	// Watches is how many directories are under inotify watch right now. It
+	// is the number that runs into fs.inotify.max_user_watches on a large
+	// tree, so it is worth being able to see.
+	Watches int
+
 	// PollInterval is the host-side interval right now, after backoff.
 	PollInterval time.Duration
 
@@ -495,10 +500,23 @@ func New(cfg Config) (*Syncer, error) {
 }
 
 // Status returns a snapshot of the syncer's state.
+//
+// The watcher is read before the status lock is taken, never while holding it,
+// so that this can be called from anywhere - a TUI refresh, an API handler -
+// without ordering against the Run loop's own teardown.
 func (s *Syncer) Status() Status {
+	s.watchMu.Lock()
+	w := s.watcher
+	s.watchMu.Unlock()
+	watches := 0
+	if w != nil {
+		watches = w.watchCount()
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	st := s.status
+	st.Watches = watches
 	if s.hostPoll != nil {
 		st.PollInterval = s.hostPoll.currentInterval()
 	}

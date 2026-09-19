@@ -305,20 +305,20 @@ func TestCVE2019_5736_InitBinaryIsNotWritable(t *testing.T) {
 	// "exec" redirection failure is fatal in POSIX sh, which would hide
 	// everything after it.
 	script := `
-		# The classic attack: reopen the binary that exec'd us, for writing.
-		if echo owned > /proc/self/exe 2>/dev/null; then
+		# Each probe runs in a subshell: a redirection failure on a special
+		# builtin is fatal to a POSIX shell, and an aborted shell would hide
+		# every later probe behind a passing test.
+		if ( echo owned > /proc/self/exe ) 2>/dev/null; then
 			echo ESCAPED-WROTE-TO-EXE
 		else
 			echo write-refused
 		fi
-		# Truncating it is the same class of attack.
-		if : > /proc/self/exe 2>/dev/null; then
+		if ( true > /proc/self/exe ) 2>/dev/null; then
 			echo ESCAPED-TRUNCATED-EXE
 		else
 			echo truncate-refused
 		fi
-		# Appending, in case the seal set is incomplete.
-		if echo owned >> /proc/self/exe 2>/dev/null; then
+		if ( echo owned >> /proc/self/exe ) 2>/dev/null; then
 			echo ESCAPED-APPENDED-EXE
 		else
 			echo append-refused
@@ -339,13 +339,53 @@ func TestCVE2019_5736_InitBinaryIsNotWritable(t *testing.T) {
 				want, res.output)
 		}
 	}
-	// hull-init is exec'd from a memfd, so /proc/self/exe names an
-	// anonymous, already-unlinked file - never the daemon on disk.
-	if !strings.Contains(res.output, "memfd") {
-		t.Errorf("the container's /proc/self/exe should name a memfd, not a file on disk:\n%s", res.output)
+	// After the final execve, /proc/self/exe is the container's own binary,
+	// which is the point: the only executable a container can reach is one
+	// from its own image. It must never be a host path.
+	for _, forbidden := range []string{"hulld", "hull-init", "/usr/bin/crun", "/usr/bin/runc"} {
+		if strings.Contains(res.output, forbidden) {
+			t.Fatalf("the container was exec'd from %q, a host binary:\n%s", forbidden, res.output)
+		}
 	}
-	if strings.Contains(res.output, "hulld") {
-		t.Errorf("the container was exec'd from the daemon binary:\n%s", res.output)
+	if !strings.Contains(res.output, "busybox") {
+		t.Errorf("expected /proc/self/exe to be the container's own binary:\n%s", res.output)
+	}
+}
+
+// TestCVE2019_5736_InitStageRunsFromMemfd proves the structural claim
+// directly: with the init annotation set, hull-init stays resident as the
+// container's PID 1, so /proc/1/exe is visible from inside - and it names an
+// anonymous memfd, not any file the container could open for writing.
+func TestCVE2019_5736_InitStageRunsFromMemfd(t *testing.T) {
+	requireRoot(t)
+	rootfs := fixtureRootfs(t)
+	r := newRuntime(t)
+
+	probe := "readlink /proc/1/exe; " +
+		"if ( echo owned > /proc/1/exe ) 2>/dev/null; then echo ESCAPED; else echo pid1-write-refused; fi"
+	spec := baseSpec(rootfs, "/bin/sh", "-c", probe)
+	if spec.Annotations == nil {
+		spec.Annotations = map[string]string{}
+	}
+	spec.Annotations[runtime.AnnotationInit] = "true"
+
+	res := run(t, r, "memfdinit", spec, runtime.CreateOptions{})
+	if res.createErr != nil {
+		t.Fatalf("Create: %v", res.createErr)
+	}
+	if strings.Contains(res.output, "ESCAPED") {
+		t.Fatalf("the container wrote to PID 1's executable:\n%s", res.output)
+	}
+	if !strings.Contains(res.output, "memfd") {
+		t.Fatalf("PID 1's executable is not a memfd; hull must never exec a container "+
+			"from a file on disk:\n%s", res.output)
+	}
+	if !strings.Contains(res.output, "pid1-write-refused") {
+		t.Fatalf("the write probe did not run:\n%s", res.output)
+	}
+	// The reaper must still relay the entrypoint's exit status.
+	if res.exitCode != 0 {
+		t.Errorf("exit code = %d, want 0", res.exitCode)
 	}
 }
 
@@ -447,25 +487,64 @@ func TestCVE2024_21626_NoLeakedDescriptors(t *testing.T) {
 		}
 		var leaked []string
 		for _, line := range strings.Split(res.output, "\n") {
-			fields := strings.Fields(line)
-			if len(fields) < 3 {
+			name, target, ok := strings.Cut(line, " -> ")
+			if !ok {
+				// ls prints a diagnostic rather than a link for its own
+				// directory handle, which it has already closed.
 				continue
 			}
-			name := fields[len(fields)-3]
-			target := fields[len(fields)-1]
-			n, cerr := strconv.Atoi(name)
+			fields := strings.Fields(name)
+			if len(fields) == 0 {
+				continue
+			}
+			fd := fields[len(fields)-1]
+			n, cerr := strconv.Atoi(fd)
 			if cerr != nil || n < 3 {
 				continue
 			}
-			// ls's own handle on the directory it is listing.
+			target = strings.TrimSpace(target)
 			if strings.HasSuffix(target, "/fd") {
-				continue
+				continue // ls's own handle on the directory it is listing
 			}
-			leaked = append(leaked, name+" -> "+target)
+			leaked = append(leaked, fd+" -> "+target)
 		}
 		if len(leaked) > 0 {
 			t.Fatalf("descriptors above stderr survived into the container: %v\n%s",
 				leaked, res.output)
+		}
+	})
+
+	t.Run("nothing survives the PID 1 supervisor either", func(t *testing.T) {
+		// The init path cannot use close_range - the Go runtime is still
+		// running - so it closes the handshake descriptors and re-arms
+		// close-on-exec instead. The entrypoint must see the same thing.
+		spec := baseSpec(rootfs, "/bin/ls", "-l", "/proc/self/fd")
+		if spec.Annotations == nil {
+			spec.Annotations = map[string]string{}
+		}
+		spec.Annotations[runtime.AnnotationInit] = "true"
+		res := run(t, r, "fdscaninit", spec,
+			runtime.CreateOptions{ExtraFiles: []*os.File{hostRoot}})
+		if res.createErr != nil {
+			t.Fatalf("Create: %v", res.createErr)
+		}
+		for _, line := range strings.Split(res.output, "\n") {
+			name, target, ok := strings.Cut(line, " -> ")
+			if !ok {
+				continue
+			}
+			fields := strings.Fields(name)
+			if len(fields) == 0 {
+				continue
+			}
+			n, cerr := strconv.Atoi(fields[len(fields)-1])
+			if cerr != nil || n < 3 {
+				continue
+			}
+			if strings.HasSuffix(strings.TrimSpace(target), "/fd") {
+				continue
+			}
+			t.Fatalf("fd %d survived the supervisor: %s\n%s", n, target, res.output)
 		}
 	})
 

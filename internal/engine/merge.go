@@ -55,6 +55,11 @@ func MergeImageConfig(user types.ContainerConfig, img *types.Image) (types.Conta
 	if err != nil {
 		return types.ContainerConfig{}, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
+	// An empty result is recorded as nil rather than an empty slice, so a
+	// container with no environment round-trips through JSON unchanged.
+	if len(env) == 0 {
+		env = nil
+	}
 	out.Env = env
 
 	// Entrypoint and command, by Docker's rule.

@@ -33,8 +33,12 @@ type Snapshotter interface {
 	UpperPath(containerID string) (string, error)
 	// Changes diffs the container's upperdir against its image.
 	Changes(ctx context.Context, containerID string) ([]snapshot.Change, error)
-	// Checkpoint captures the upperdir under a name.
+	// Checkpoint captures the upperdir under a name, sharing inodes where the
+	// filesystem allows it.
 	Checkpoint(ctx context.Context, containerID, name string) (snapshot.Checkpoint, error)
+	// CheckpointCopy captures the upperdir with a true byte copy, so the
+	// result stays stable even if the container keeps running.
+	CheckpointCopy(ctx context.Context, containerID, name string) (snapshot.Checkpoint, error)
 	// ListCheckpoints, StatCheckpoint and DeleteCheckpoint manage them.
 	ListCheckpoints(containerID string) ([]snapshot.Checkpoint, error)
 	StatCheckpoint(containerID, name string) (snapshot.Checkpoint, error)

@@ -26,6 +26,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rahuldhali/hull/internal/explain"
 	"github.com/rahuldhali/hull/internal/oci/runtimespec"
 	"github.com/rahuldhali/hull/internal/types"
 )
@@ -159,6 +160,10 @@ type Options struct {
 	// Annotations are merged into the spec's annotations, after hull's own.
 	Annotations map[string]string
 
+	// Tracer narrates the kernel-level meaning of each translation decision
+	// for --explain. Nil means explain.Nop, which is the default everywhere.
+	Tracer explain.Tracer
+
 	// SpecVersion is the runtime-spec version written to config.json. Empty
 	// means runtimespec.Version, the newest hull models.
 	//
@@ -243,6 +248,7 @@ func Generate(c *types.Container, img *types.Image, opts Options) (*runtimespec.
 	if err != nil {
 		return nil, nil, err
 	}
+	explain.OrNop(opts.Tracer).Step(explain.KindCap, "bounding set: %d capabilities (%s)", len(caps), strings.Join(caps, " "))
 
 	sec, err := parseSecurityOpt(c.HostConfig.SecurityOpt)
 	if err != nil {
@@ -276,6 +282,7 @@ func Generate(c *types.Container, img *types.Image, opts Options) (*runtimespec.
 	mounts = dedupeMounts(mounts)
 	b.applyIDMappedBinds(mounts)
 	sortMountsByDepth(mounts)
+	explain.OrNop(opts.Tracer).Step(explain.KindMount, "pivot_root(%q, \".put_old\"), then %d mounts in depth order", opts.RootFS, len(mounts))
 
 	namespaces, err := b.buildNamespaces()
 	if err != nil {
@@ -291,6 +298,7 @@ func Generate(c *types.Container, img *types.Image, opts Options) (*runtimespec.
 	if err != nil {
 		return nil, nil, err
 	}
+	explain.OrNop(opts.Tracer).Step(explain.KindCgroup, "cgroup v2 path %q, %d device rules", opts.CgroupsPath, len(devices))
 
 	rlimits, err := buildRlimits(c.HostConfig.Ulimits)
 	if err != nil {
@@ -418,11 +426,13 @@ func (b *builder) buildNamespaces() ([]runtimespec.LinuxNamespace, error) {
 		{Type: runtimespec.UTSNamespace},
 		{Type: runtimespec.MountNamespace},
 	}
+	explain.OrNop(b.opts.Tracer).Step(explain.KindNamespace, "clone3(%s)", explain.CloneFlags("pid", "ipc", "uts", "mnt"))
 
 	mode := b.c.HostConfig.NetworkMode
 	switch {
 	case mode == "host":
 		// No network namespace: the container shares the root netns.
+		explain.OrNop(b.opts.Tracer).Step(explain.KindNamespace, "--network host: no CLONE_NEWNET, so the container shares the root network namespace")
 	case strings.HasPrefix(mode, "container:"):
 		p := b.opts.NetworkNSPath
 		if p == "" {
@@ -431,8 +441,10 @@ func (b *builder) buildNamespaces() ([]runtimespec.LinuxNamespace, error) {
 			}
 			p = fmt.Sprintf("/proc/%d/ns/net", b.opts.SharedNetworkPID)
 		}
+		explain.OrNop(b.opts.Tracer).Step(explain.KindNamespace, "setns(%q, CLONE_NEWNET)   (--network %s)", p, mode)
 		ns = append(ns, runtimespec.LinuxNamespace{Type: runtimespec.NetworkNamespace, Path: p})
 	default:
+		explain.OrNop(b.opts.Tracer).Step(explain.KindNamespace, "clone3(CLONE_NEWNET)   (a fresh network namespace for the bridge endpoint)")
 		ns = append(ns, runtimespec.LinuxNamespace{Type: runtimespec.NetworkNamespace})
 	}
 
@@ -457,6 +469,7 @@ func (b *builder) buildNamespaces() ([]runtimespec.LinuxNamespace, error) {
 				return nil, fmt.Errorf("bundle: Options.UserNS.GIDMappings[%d] has size 0", i)
 			}
 		}
+		explain.OrNop(b.opts.Tracer).Step(explain.KindNamespace, "clone3(CLONE_NEWUSER), then the parent writes /proc/<pid>/uid_map: %q", fmt.Sprintf("%d %d %d", b.opts.UserNS.UIDMappings[0].ContainerID, b.opts.UserNS.UIDMappings[0].HostID, b.opts.UserNS.UIDMappings[0].Size))
 		ns = append(ns, runtimespec.LinuxNamespace{Type: runtimespec.UserNamespace})
 	}
 	return ns, nil

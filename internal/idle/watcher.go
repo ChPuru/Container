@@ -30,6 +30,13 @@ type record struct {
 	lastActive time.Time
 	lastReason string
 
+	// dirty latches activity reported between two samples — a Touch, a byte
+	// through the port proxy, a ThawFor — and dirtyReason keeps the strongest
+	// signal among them. A latch rather than a timestamp comparison, because
+	// two events inside one clock tick must not be able to hide each other.
+	dirty       bool
+	dirtyReason string
+
 	// cpuUsec is the previous cpu.stat usage_usec reading; haveCPU says
 	// whether it is a usable baseline for a delta.
 	cpuUsec uint64
@@ -71,7 +78,6 @@ type decision struct {
 	id      string
 	reason  string
 	idleFor time.Duration
-	ports   int
 	at      time.Time
 }
 
@@ -211,6 +217,18 @@ func (w *Watcher) Sample(ctx context.Context) {
 	external := w.externalClients()
 	now := w.now()
 
+	// Read every cgroup counter before taking the lock: the default reader
+	// touches the filesystem, and Touch is on the port proxy's hot path.
+	cpu := make(map[string]uint64, len(snaps))
+	for _, s := range snaps {
+		if !s.Running {
+			continue
+		}
+		if usec, ok := w.cfg.CPUUsage(s.CGroupPath); ok {
+			cpu[s.ID] = usec
+		}
+	}
+
 	var (
 		freezes  []decision
 		thaws    []decision
@@ -220,7 +238,6 @@ func (w *Watcher) Sample(ctx context.Context) {
 
 	w.mu.Lock()
 	w.samples++
-	prev := w.lastSample
 	w.lastSample = now
 
 	busy := w.clients+external > 0
@@ -284,7 +301,7 @@ func (w *Watcher) Sample(ctx context.Context) {
 		// The CPU signal. A frozen cgroup's counter cannot move, so this only
 		// ever keeps a live container awake.
 		cpuReason := ""
-		if usec, ok := w.cfg.CPUUsage(s.CGroupPath); ok {
+		if usec, ok := cpu[s.ID]; ok {
 			w.cpuSeen = true
 			switch {
 			case !r.haveCPU:
@@ -301,11 +318,14 @@ func (w *Watcher) Sample(ctx context.Context) {
 			cpuMissing = true
 		}
 
-		// Everything else. A Touch between passes shows up as an activity
-		// clock that has moved since the previous sample.
+		// Everything else: whatever was latched since the previous pass.
 		touched := ""
-		if r.lastActive.After(prev) {
-			touched = r.lastReason
+		if r.dirty {
+			touched = r.dirtyReason
+			if touched == "" {
+				touched = ReasonTouch
+			}
+			r.dirty, r.dirtyReason = false, ""
 		}
 		held := ""
 		if r.holds > 0 {
@@ -316,7 +336,8 @@ func (w *Watcher) Sample(ctx context.Context) {
 			attach = ReasonAttach
 		}
 
-		if reason := topReason(attach, held, cpuReason, touched); reason != "" {
+		reason := topReason(attach, held, cpuReason, touched)
+		if reason != "" {
 			r.lastActive = now
 			r.lastReason = reason
 			busy = true
@@ -335,7 +356,7 @@ func (w *Watcher) Sample(ctx context.Context) {
 		case r.frozenByHull:
 			// Anything at all that counted as activity since we froze it is a
 			// wake-up: an attach, a hold taken by ThawFor, a Touch.
-			if r.holds > 0 || s.Attached > 0 || r.lastActive.After(r.frozenAt) {
+			if reason != "" || r.holds > 0 || s.Attached > 0 || !r.lastActive.Before(r.frozenAt) {
 				thaws = append(thaws, decision{
 					id:     s.ID,
 					reason: topReason(attach, held, r.lastReason, ReasonTouch),
@@ -350,7 +371,6 @@ func (w *Watcher) Sample(ctx context.Context) {
 				id:      s.ID,
 				reason:  ReasonIdle,
 				idleFor: idleFor,
-				ports:   s.PublishedPorts,
 				at:      now,
 			})
 		}
@@ -714,6 +734,8 @@ func (w *Watcher) hold(id string) (*record, bool) {
 	r.holds++
 	r.lastActive = now
 	r.lastReason = ReasonPort
+	r.dirty = true
+	r.dirtyReason = topReason(r.dirtyReason, ReasonPort)
 	w.lastBusy = now
 	w.idleFired = false
 	w.mu.Unlock()
@@ -732,6 +754,8 @@ func (w *Watcher) release(id string) {
 		}
 		r.lastActive = now
 		r.lastReason = ReasonPort
+		r.dirty = true
+		r.dirtyReason = topReason(r.dirtyReason, ReasonPort)
 	}
 	w.mu.Unlock()
 }
@@ -813,6 +837,8 @@ func (w *Watcher) TouchWith(id, reason string) {
 	r, _ := w.recordLocked(id, now)
 	r.lastActive = now
 	r.lastReason = reason
+	r.dirty = true
+	r.dirtyReason = topReason(r.dirtyReason, reason)
 	wake := r.frozenByHull
 	w.mu.Unlock()
 

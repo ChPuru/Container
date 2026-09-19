@@ -798,3 +798,26 @@ func openParents(t *testing.T, dir string) {
 		}
 	}
 }
+
+// TestExitCodeOf lives with the Linux tests because syscall.WaitStatus is an
+// integer here and a struct on Windows; the function itself is portable.
+func TestExitCodeOf(t *testing.T) {
+	tests := []struct {
+		name string
+		ws   syscall.WaitStatus
+		want int
+	}{
+		{name: "exit 0", ws: syscall.WaitStatus(0), want: 0},
+		{name: "exit 3", ws: syscall.WaitStatus(3 << 8), want: 3},
+		{name: "exit 255", ws: syscall.WaitStatus(255 << 8), want: 255},
+		{name: "killed by SIGKILL", ws: syscall.WaitStatus(9), want: 137},
+		{name: "killed by SIGTERM", ws: syscall.WaitStatus(15), want: 143},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ExitCodeOf(tc.ws); got != tc.want {
+				t.Fatalf("ExitCodeOf = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}

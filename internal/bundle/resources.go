@@ -3,8 +3,10 @@ package bundle
 import (
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 
+	"github.com/rahuldhali/hull/internal/explain"
 	"github.com/rahuldhali/hull/internal/oci/runtimespec"
 )
 
@@ -26,6 +28,7 @@ func (b *builder) buildResources() (*runtimespec.LinuxResources, []runtimespec.L
 	if r.Memory != 0 || r.MemoryReservation != 0 || r.MemorySwap != 0 {
 		mem := &runtimespec.LinuxMemory{}
 		if r.Memory != 0 {
+			explain.OrNop(b.opts.Tracer).Step(explain.KindCgroup, "memory.max <- %q   (--memory)", strconv.FormatInt(r.Memory, 10))
 			mem.Limit = i64p(r.Memory)
 		}
 		if r.MemoryReservation != 0 {
@@ -64,6 +67,7 @@ func (b *builder) buildResources() (*runtimespec.LinuxResources, []runtimespec.L
 		if quota <= 0 {
 			return nil, nil, fmt.Errorf("bundle: --cpus value %d nanocpus rounds to a zero cpu quota over a %dus period", r.NanoCPUs, period)
 		}
+		explain.OrNop(b.opts.Tracer).Step(explain.KindCgroup, "cpu.max <- %q   (--cpus %g)", fmt.Sprintf("%d %d", quota, period), float64(r.NanoCPUs)/1e9)
 		cpu.Quota = i64p(quota)
 		cpu.Period = u64p(period)
 		haveCPU = true

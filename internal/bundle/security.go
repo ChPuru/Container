@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/rahuldhali/hull/internal/explain"
 	"github.com/rahuldhali/hull/internal/oci/runtimespec"
 	"github.com/rahuldhali/hull/internal/seccompprof"
 )
@@ -307,6 +308,7 @@ func (b *builder) buildSeccomp(caps []string, sec securityOptions) (*runtimespec
 	if prof == nil {
 		return nil, errors.New("bundle: the seccomp profile provider returned no filter for an unprivileged container; refusing to start it unconfined")
 	}
+	explain.OrNop(b.opts.Tracer).Step(explain.KindSeccomp, "loaded %d-rule filter, default %s, after no_new_privs=1", len(prof.Syscalls), prof.DefaultAction)
 	return prof, nil
 }
 

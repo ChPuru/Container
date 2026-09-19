@@ -32,6 +32,12 @@
 //
 // The toolbox is a static busybox fetched once into the data root with
 // EmbedToolbox, not compiled into the daemon, so hull's binaries stay small.
+//
+// One honest caveat: the two mountpoints, Options.ToolboxMount and
+// Options.HostRoot, are directories on the engine distro's own filesystem, and
+// creating them is the single thing a session leaves behind. They are empty,
+// they are reused by every later session, and both paths are options so a
+// caller that wants them somewhere else can say so.
 package debugshell
 
 import (
@@ -495,7 +501,10 @@ var refusedNamespaces = map[string]string{
 // duplicates are dropped.
 func canonicalNamespaces(names []string) ([]string, error) {
 	if len(names) == 0 {
-		return append([]string(nil), DefaultNamespaces...), nil
+		// The defaults go through the same table as anything else, so
+		// DefaultNamespaces can stay spelled the way the CLI and docs spell
+		// it and still come out canonical.
+		names = DefaultNamespaces
 	}
 	out := make([]string, 0, len(names))
 	seen := make(map[string]struct{}, len(names))
@@ -528,6 +537,10 @@ func canonicalNamespaces(names []string) ([]string, error) {
 // distro happens to ship, and the two locations the banner names are also
 // exported so a script can find them without parsing the banner.
 func (o Options) environ() []string {
+	hostRoot := o.HostRoot
+	if hostRoot == "" {
+		hostRoot = "/proc/1/root"
+	}
 	env := []string{
 		"PATH=" + o.ToolboxMount + "/bin:" + DefaultPath,
 		"HOME=/root",
@@ -535,7 +548,7 @@ func (o Options) environ() []string {
 		"PS1=hull-debug " + shortID(o.ContainerID) + ":\\w# ",
 		"HULL_DEBUG_CONTAINER=" + o.ContainerID,
 		"HULL_DEBUG_TOOLBOX=" + o.ToolboxMount + "/bin",
-		"HULL_DEBUG_HOST_ROOT=" + o.HostRoot,
+		"HULL_DEBUG_HOST_ROOT=" + hostRoot,
 	}
 	return append(env, o.Env...)
 }
@@ -543,13 +556,20 @@ func (o Options) environ() []string {
 // banner is the greeting the shell prints before it hands over. It names every
 // location the session created, because the one thing an operator needs in the
 // first five seconds is where the target's filesystem went.
+//
+// An empty HostRoot means the read-only bind was refused by the kernel, in
+// which case the banner says so rather than pointing at an empty directory.
 func (o Options) banner(pid int) string {
+	fs := "/proc/1/root (live, through the joined pid namespace)"
+	if o.HostRoot != "" {
+		fs = o.HostRoot + " (read-only), and /proc/1/root (live)"
+	}
 	var b strings.Builder
 	b.WriteString("hull debug: busybox toolbox attached to container " + shortID(o.ContainerID) + "\n")
 	b.WriteString("  namespaces joined : " + strings.Join(o.Namespaces, ", ") +
 		"  (" + explain.CloneFlags(o.Namespaces...) + ")\n")
 	b.WriteString("  target pid        : " + strconv.Itoa(pid) + " on the host, 1 in here\n")
-	b.WriteString("  target filesystem : " + o.HostRoot + " (read-only), and /proc/1/root (live)\n")
+	b.WriteString("  target filesystem : " + fs + "\n")
 	b.WriteString("  toolbox           : " + o.ToolboxMount + "/bin, already on PATH\n")
 	b.WriteString("  this shell's mounts are private; the container is not modified.\n")
 	return b.String()

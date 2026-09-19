@@ -67,15 +67,20 @@ func NamespaceFlags(names []string) (int, error) {
 //  1. resolve the container to the host pid of its init process and take a
 //     pidfd on it, so a pid recycled between the lookup and the setns cannot
 //     redirect the session at an unrelated host process;
-//  2. on one dedicated OS thread, setns(2) into the requested namespaces -
+//  2. open_tree(2) a detached, recursively read-only clone of the target's
+//     root mount tree, while the daemon is still in its own mount namespace;
+//  3. on one dedicated OS thread, setns(2) into the requested namespaces -
 //     pid, net, ipc and uts by default, never mount and never user;
-//  3. unshare a private mount namespace for the session and make it slave, so
+//  4. unshare a private mount namespace for the session and make it slave, so
 //     nothing it mounts can propagate anywhere, least of all into the target;
-//  4. bind the target's root read-only at Options.HostRoot and mount a tmpfs
+//  5. move_mount(2) that detached tree onto Options.HostRoot and mount a tmpfs
 //     holding the toolbox at Options.ToolboxMount;
-//  5. fork the shell from that same thread, with PATH pointing at the toolbox
+//  6. fork the shell from that same thread, with PATH pointing at the toolbox
 //     and a banner saying where everything is;
-//  6. put the thread's own namespaces back and let the Go runtime destroy it.
+//  7. put the thread's own namespaces back and let the Go runtime destroy it.
+//
+// Every mount lives in the session's own mount namespace, which the kernel
+// destroys when the shell exits, so nothing has to be cleaned up afterwards.
 //
 // The target container is not modified: nothing is written into its
 // filesystem, nothing is mounted in its mount namespace, its cgroup is
@@ -121,6 +126,15 @@ func Attach(ctx context.Context, opts Options) error {
 		return err
 	}
 
+	hostRoot, err := captureHostRoot(pid, tr)
+	if err != nil {
+		tr.Err(err)
+		return err
+	}
+	if hostRoot != nil {
+		defer hostRoot.Close()
+	}
+
 	sio, err := o.openStdio()
 	if err != nil {
 		tr.Err(err)
@@ -128,7 +142,7 @@ func Attach(ctx context.Context, opts Options) error {
 	}
 	defer sio.closeParent()
 
-	childPID, err := o.spawn(fd, flags, pid, toolbox, sio.child)
+	childPID, err := o.spawn(fd, flags, pid, toolbox, hostRoot, sio.child)
 	sio.closeChild()
 	if err != nil {
 		tr.Err(err)
@@ -177,7 +191,7 @@ func openToolbox(path string) (*os.File, error) {
 // and such a thread would inherit the namespaces, so spawnLocked also puts the
 // thread's own namespaces back the instant the fork returns. The window is the
 // handful of syscalls in between, with no blocking call among them.
-func (o Options) spawn(pidfd, flags, targetPID int, toolbox *os.File, files [3]*os.File) (int, error) {
+func (o Options) spawn(pidfd, flags, targetPID int, toolbox, hostRoot *os.File, files [3]*os.File) (int, error) {
 	type result struct {
 		pid int
 		err error
@@ -185,7 +199,7 @@ func (o Options) spawn(pidfd, flags, targetPID int, toolbox *os.File, files [3]*
 	ch := make(chan result, 1)
 	go func() {
 		runtime.LockOSThread()
-		pid, err := o.spawnLocked(pidfd, flags, targetPID, toolbox, files)
+		pid, err := o.spawnLocked(pidfd, flags, targetPID, toolbox, hostRoot, files)
 		ch <- result{pid, err}
 		// No UnlockOSThread on purpose; see the doc comment.
 	}()
@@ -194,7 +208,7 @@ func (o Options) spawn(pidfd, flags, targetPID int, toolbox *os.File, files [3]*
 }
 
 // spawnLocked must run on a locked OS thread.
-func (o Options) spawnLocked(pidfd, flags, targetPID int, toolbox *os.File, files [3]*os.File) (int, error) {
+func (o Options) spawnLocked(pidfd, flags, targetPID int, toolbox, hostRoot *os.File, files [3]*os.File) (int, error) {
 	tr := o.Tracer
 
 	saved, err := saveNamespaces(flags)
@@ -226,8 +240,11 @@ func (o Options) spawnLocked(pidfd, flags, targetPID int, toolbox *os.File, file
 		tr.Step(explain.KindMount, "mount(\"\", \"/\", MS_REC|MS_SLAVE)")
 	}
 
-	if err := o.mountHostRoot(targetPID); err != nil {
-		return 0, err
+	if err := o.mountHostRoot(hostRoot); err != nil {
+		// Not fatal: the operator still gets a shell, and the banner then
+		// points at /proc/1/root instead of an empty directory.
+		tr.Err(err)
+		o.HostRoot = ""
 	}
 	if err := o.mountToolbox(toolbox); err != nil {
 		return 0, err
@@ -248,46 +265,63 @@ func (o Options) spawnLocked(pidfd, flags, targetPID int, toolbox *os.File, file
 	return pid, nil
 }
 
-// mountHostRoot binds the target's root filesystem read-only at
-// Options.HostRoot.
+// captureHostRoot takes a detached, read-only copy of the target's whole root
+// mount tree, before any namespace has been joined, and returns the descriptor
+// that holds it.
 //
-// The source is /proc/<pid>/root, the kernel's own live handle on that
-// process's root, which is why this works without ever entering the target's
-// mount namespace. The bind is recursive so the container's own submounts -
-// its volumes, its tmpfs mounts - are visible too, and then the whole subtree
-// is made read-only, because a debug session must not be able to change what
-// it came to look at.
-func (o Options) mountHostRoot(targetPID int) error {
-	tr := o.Tracer
+// It has to be a detached tree rather than a plain bind. The source is
+// /proc/<pid>/root, the kernel's own live handle on the container's root, and
+// its mounts belong to the daemon's mount namespace; mount(2) refuses to bind
+// a source whose mount is not in the caller's current namespace, and by the
+// time the session needs it the caller has unshared its own. open_tree(2) with
+// OPEN_TREE_CLONE produces an anonymous tree instead, which move_mount(2) will
+// graft into whatever namespace asks for it later.
+//
+// The clone is made read-only here, while it is still attached to nothing, so
+// the session cannot change what it came to look at. A caller on a kernel
+// without open_tree gets a nil file and no error: the session then points the
+// operator at /proc/1/root, which needs no mount at all.
+func captureHostRoot(targetPID int, tr explain.Tracer) (*os.File, error) {
+	src := "/proc/" + strconv.Itoa(targetPID) + "/root"
+	fd, err := unix.OpenTree(unix.AT_FDCWD, src,
+		uint(unix.OPEN_TREE_CLONE|unix.OPEN_TREE_CLOEXEC|unix.AT_RECURSIVE))
+	if err != nil {
+		tr.Detail("open_tree("+src+", OPEN_TREE_CLONE|AT_RECURSIVE)", err.Error())
+		return nil, nil
+	}
+	f := os.NewFile(uintptr(fd), src)
+	tr.Step(explain.KindMount, "open_tree(%q, OPEN_TREE_CLONE|AT_RECURSIVE) -> fd %d", src, fd)
+
+	attr := &unix.MountAttr{Attr_set: unix.MOUNT_ATTR_RDONLY}
+	if err := unix.MountSetattr(int(f.Fd()), "", unix.AT_EMPTY_PATH|unix.AT_RECURSIVE, attr); err != nil {
+		f.Close()
+		return nil, fmt.Errorf("debugshell: make the container's root read-only before it is attached "+
+			"(mount_setattr AT_RECURSIVE|MOUNT_ATTR_RDONLY): %w", err)
+	}
+	tr.Step(explain.KindMount, "mount_setattr(fd %d, AT_EMPTY_PATH|AT_RECURSIVE, MOUNT_ATTR_RDONLY)", int(f.Fd()))
+	return f, nil
+}
+
+// mountHostRoot grafts the detached tree captured by captureHostRoot onto
+// Options.HostRoot inside the session's private mount namespace.
+//
+// A failure is reported rather than returned fatal by the caller: a debug
+// shell that refuses to start because one convenience mount was refused would
+// be exactly the wrong trade, and /proc/1/root still shows the same files.
+func (o Options) mountHostRoot(tree *os.File) error {
+	if tree == nil {
+		return fmt.Errorf("debugshell: this kernel has no open_tree(2), so the container's root "+
+			"cannot be attached at %s; use /proc/1/root instead", o.HostRoot)
+	}
 	if err := os.MkdirAll(o.HostRoot, 0o755); err != nil {
 		return fmt.Errorf("debugshell: create the mountpoint %s: %w", o.HostRoot, err)
 	}
-	src := "/proc/" + strconv.Itoa(targetPID) + "/root"
-	tr.Step(explain.KindMount, "mount(%q, %q, MS_BIND|MS_REC)", src, o.HostRoot)
-	if err := unix.Mount(src, o.HostRoot, "", unix.MS_BIND|unix.MS_REC, ""); err != nil {
-		return fmt.Errorf("debugshell: bind the container's root at %s: %w", o.HostRoot, err)
+	if err := unix.MoveMount(int(tree.Fd()), "", unix.AT_FDCWD, o.HostRoot,
+		unix.MOVE_MOUNT_F_EMPTY_PATH); err != nil {
+		return fmt.Errorf("debugshell: move_mount the container's root onto %s: %w", o.HostRoot, err)
 	}
-	if err := setReadonlyRec(o.HostRoot); err != nil {
-		tr.Detail("mount_setattr(AT_RECURSIVE, MOUNT_ATTR_RDONLY)", err.Error())
-		tr.Step(explain.KindMount, "mount(\"\", %q, MS_REMOUNT|MS_BIND|MS_RDONLY)   "+
-			"(submounts keep their own flags on this kernel)", o.HostRoot)
-		if rerr := unix.Mount("", o.HostRoot, "", unix.MS_REMOUNT|unix.MS_BIND|unix.MS_RDONLY, ""); rerr != nil {
-			return fmt.Errorf("debugshell: make %s read-only: %w", o.HostRoot, rerr)
-		}
-		return nil
-	}
-	tr.Step(explain.KindMount, "mount_setattr(%q, AT_RECURSIVE, MOUNT_ATTR_RDONLY)", o.HostRoot)
-	return nil
-}
-
-// setReadonlyRec makes a whole mount subtree read-only in one call. It needs
-// mount_setattr(2), which arrived in 5.12; on an older kernel the caller falls
-// back to remounting the top mount alone.
-func setReadonlyRec(target string) error {
-	attr := &unix.MountAttr{Attr_set: unix.MOUNT_ATTR_RDONLY}
-	if err := unix.MountSetattr(unix.AT_FDCWD, target, unix.AT_RECURSIVE, attr); err != nil {
-		return fmt.Errorf("debugshell: mount_setattr(%s, AT_RECURSIVE, MOUNT_ATTR_RDONLY): %w", target, err)
-	}
+	o.Tracer.Step(explain.KindMount, "move_mount(fd %d, \"\", %q, MOVE_MOUNT_F_EMPTY_PATH)",
+		int(tree.Fd()), o.HostRoot)
 	return nil
 }
 

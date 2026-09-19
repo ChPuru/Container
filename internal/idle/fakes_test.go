@@ -8,6 +8,11 @@ import (
 	"time"
 )
 
+// quietLogger keeps the watcher's diagnostics out of the test output.
+func quietLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
 // ---------- a fake clock ----------
 
 // fakeClock is a manually advanced clock, so the state machine can be driven
@@ -254,7 +259,7 @@ func newHarness(t *testing.T, cfg Config) *harness {
 		cfg.CPUUsage = h.src.cpuUsage
 	}
 	if cfg.Logger == nil {
-		cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+		cfg.Logger = quietLogger()
 	}
 	cfg.OnFreeze = func(id string) {
 		h.mu.Lock()

@@ -423,3 +423,56 @@ func MemfdSeals(fd uintptr) (int, error) {
 
 // AllSeals is the seal set SealedMemfd applies.
 const AllSeals = unix.F_SEAL_SEAL | unix.F_SEAL_SHRINK | unix.F_SEAL_GROW | unix.F_SEAL_WRITE
+
+// SetCloexecFrom marks every descriptor from first upwards close-on-exec,
+// instead of closing it.
+//
+// It exists for the one case where CloseRangeFrom cannot be used: when the
+// stage stays resident as the container's PID 1 rather than exec'ing, the Go
+// runtime is still running and owns descriptors of its own - the netpoll epoll
+// fd among them - which closing would turn into a crash. Marking them
+// close-on-exec gives the same guarantee where it matters, because the
+// entrypoint is reached through execve either way.
+//
+// The caller must still close, explicitly, any descriptor it was handed with
+// CLOEXEC already cleared; SetCloexecFrom re-arms those too, but closing them
+// is cheaper and says what is meant.
+func SetCloexecFrom(first int) error {
+	d, err := os.Open("/proc/self/fd")
+	if err != nil {
+		return fmt.Errorf("initspec: open /proc/self/fd: %w", err)
+	}
+	selfFD := int(d.Fd())
+	names, err := d.Readdirnames(-1)
+	d.Close()
+	if err != nil {
+		return fmt.Errorf("initspec: read /proc/self/fd: %w", err)
+	}
+	for _, n := range names {
+		fd, cerr := strconv.Atoi(n)
+		if cerr != nil || fd < first || fd == selfFD {
+			continue
+		}
+		flags, ferr := unix.FcntlInt(uintptr(fd), unix.F_GETFD, 0)
+		if ferr != nil {
+			continue
+		}
+		if flags&unix.FD_CLOEXEC != 0 {
+			continue
+		}
+		if _, ferr := unix.FcntlInt(uintptr(fd), unix.F_SETFD, flags|unix.FD_CLOEXEC); ferr != nil {
+			return fmt.Errorf("initspec: mark fd %d close-on-exec: %w", fd, ferr)
+		}
+	}
+	return nil
+}
+
+// CloseHandshakeFDs closes the descriptors the runtime handed the container
+// stage, once the handshake is over. They are the only inherited descriptors
+// whose close-on-exec flag the runtime deliberately cleared, so they are the
+// only ones that could otherwise survive an execve.
+func CloseHandshakeFDs() {
+	for fd := FDSync; fd <= FDLast; fd++ {
+		unix.Close(fd)
+	}
+}

@@ -3,7 +3,6 @@ package engine
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -287,16 +286,6 @@ func copyNetworkSettings(in types.NetworkSettings) types.NetworkSettings {
 		for k, v := range in.Ports {
 			out.Ports[k] = append([]types.PortBinding(nil), v...)
 		}
-	}
-	return out
-}
-
-// containerMountTargets lists the in-container destinations of every mount,
-// which the "volume" list filter matches against.
-func containerMountTargets(c *types.Container) []string {
-	out := make([]string, 0, len(c.HostConfig.Mounts))
-	for _, m := range c.HostConfig.Mounts {
-		out = append(out, path.Clean(m.Target))
 	}
 	return out
 }

@@ -29,6 +29,24 @@ const NativeName = "hull"
 // for the hull-init binary. It exists for development and for tests.
 const InitBinaryEnv = "HULL_INIT"
 
+// AnnotationInit is the bundle annotation that asks hull-init to stay resident
+// as the container's PID 1 and supervise the entrypoint, rather than exec'ing
+// into it.
+//
+// The runtime spec has nowhere to say this - it is Docker's HostConfig.Init -
+// so hull carries it as an annotation, which is what every other runtime does
+// with engine-level options. The value is "true" or "1"; anything else is off.
+const AnnotationInit = "org.hull.init"
+
+// wantsInit reads the init annotation off a bundle.
+func wantsInit(annotations map[string]string) bool {
+	switch annotations[AnnotationInit] {
+	case "true", "1", "yes":
+		return true
+	}
+	return false
+}
+
 // initSearchPaths are the fixed locations hull looks for hull-init, after
 // InitBinaryEnv and the directory holding the running daemon.
 var initSearchPaths = []string{
@@ -586,6 +604,7 @@ func (r *NativeRuntime) buildInitConfig(c *nativeContainer, spec *runtimespec.Sp
 			Process:  *spec.Process,
 			Terminal: opts.Terminal,
 		},
+		Init: wantsInit(spec.Annotations),
 		Features: initspec.StageFeatures{
 			MountAPI:         r.features.MountAPI,
 			Openat2:          r.features.Openat2,

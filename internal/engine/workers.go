@@ -3,9 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/rahuldhali/hull/internal/events"
@@ -109,6 +107,9 @@ func (e *Engine) startReaper(id string, sup Supervisor) {
 // handleExit records a container's exit and releases the resources that only
 // a running container needs.
 func (e *Engine) handleExit(ctx context.Context, id string, code int, oomKilled bool, reason string) {
+	// The reaper's own context is cancelled as soon as the container is
+	// forgotten, so the tidying below runs on a detached one: an exit must be
+	// recorded even if the daemon has just been told to let go.
 	bg := context.WithoutCancel(ctx)
 	c, err := e.lookup(id)
 	if err != nil {
@@ -174,18 +175,23 @@ func (e *Engine) handleExit(ctx context.Context, id string, code int, oomKilled 
 	e.stopHealth(id)
 	e.notify.publish(id, lifecycleEvent{kind: notifyExit, exitCode: code})
 
+	// The follow-up work takes the container's keyed lock, so it cannot run
+	// here: Stop is holding that lock while it waits for exactly the
+	// notification published above. It is also tied to the engine's context
+	// rather than the reaper's, so a daemon that is shutting down neither
+	// restarts a container nor removes one half way through.
 	if c.HostConfig.AutoRemove {
 		e.wg.Add(1)
 		go func() {
 			defer e.wg.Done()
-			e.autoRemove(bg, id)
+			e.autoRemove(e.ctx, id)
 		}()
 		return
 	}
 	e.wg.Add(1)
 	go func() {
 		defer e.wg.Done()
-		e.maybeRestart(bg, id, code)
+		e.maybeRestart(e.ctx, id, code)
 	}()
 }
 
@@ -304,7 +310,7 @@ func (e *Engine) maybeRestart(ctx context.Context, id string, code int) {
 	if err != nil || cur.State == types.StateRunning || e.manuallyStopped(id) {
 		return
 	}
-	if err := e.startLocked(ctx, id, nil); err != nil {
+	if _, err := e.startLocked(ctx, id, nil); err != nil {
 		e.log.Warn("hull: automatic restart failed", "container", idShort(id),
 			"attempt", attempts, "backoff", delay, "err", err)
 		// A failed restart is itself an exit as far as the policy is
@@ -627,15 +633,4 @@ func (e *Engine) trackAttachment(id string, delta int) {
 	}
 	st.lastBusy = e.now()
 	e.mu.Unlock()
-}
-
-// describeRestartPolicy renders a restart policy the way the CLI prints it.
-func describeRestartPolicy(p types.RestartPolicy) string {
-	if p.Name == "" {
-		return "no"
-	}
-	if p.MaximumRetryCount > 0 {
-		return fmt.Sprintf("%s:%d", p.Name, p.MaximumRetryCount)
-	}
-	return strings.ToLower(p.Name)
 }

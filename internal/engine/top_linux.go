@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rahuldhali/hull/internal/events"
 	"github.com/rahuldhali/hull/internal/types"
 )
 
@@ -68,7 +69,7 @@ func (e *Engine) Top(ctx context.Context, idOrName, psArgs string) (TopResult, e
 		}
 		res.Processes = append(res.Processes, row)
 	}
-	e.emit("top", c, nil)
+	e.emit(events.ActionTop, c, nil)
 	return res, nil
 }
 
@@ -120,10 +121,10 @@ func parseProcStat(line string) (ppid int, utime, stime, starttime uint64, tty i
 	if len(fields) < 20 {
 		return 0, 0, 0, 0, 0, false
 	}
-	ppid = atoiSafe(fields[1])     // field 4
-	tty = atoiSafe(fields[4])      // field 7
-	utime = parseUint(fields[11])  // field 14
-	stime = parseUint(fields[12])  // field 15
+	ppid = atoiSafe(fields[1])        // field 4
+	tty = atoiSafe(fields[4])         // field 7
+	utime = parseUint(fields[11])     // field 14
+	stime = parseUint(fields[12])     // field 15
 	starttime = parseUint(fields[19]) // field 22
 	return ppid, utime, stime, starttime, tty, true
 }

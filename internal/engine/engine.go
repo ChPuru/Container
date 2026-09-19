@@ -879,11 +879,16 @@ func dedupeStrings(in []string) []string {
 // A runtime refuses a spec version it does not know, and says so badly: crun
 // 1.14.1 rejects 1.2.0 with a bare "unknown version specified" even though it
 // reads every field hull emits. accepted is the driver's own answer
-// (RuntimeFeatures.OCIVersions), which for crun is [min, max] and may carry a
-// "+dev" suffix. The result is the highest version both sides understand, and
-// falls back to hull's own when the driver said nothing useful.
+// (RuntimeFeatures.OCIVersions), which for crun is the [min, max] range it
+// supports and may carry a "+dev" suffix.
+//
+// The result is the lower of hull's own version and the highest version the
+// driver admits to understanding, so hull keeps modelling the newest spec and
+// simply writes whatever the installed runtime will read. An empty or
+// unparsable answer falls back to hull's version, which is the best guess
+// available and is what an older runc leaves us with.
 func NegotiateSpecVersion(hullVersion string, accepted []string) string {
-	best := ""
+	highest := ""
 	for _, raw := range accepted {
 		v := strings.TrimSpace(raw)
 		if i := strings.IndexAny(v, "+-"); i > 0 {
@@ -892,17 +897,17 @@ func NegotiateSpecVersion(hullVersion string, accepted []string) string {
 		if v == "" || !looksLikeVersion(v) {
 			continue
 		}
-		if compareVersions(v, hullVersion) > 0 {
-			continue // the driver accepts more than hull models
-		}
-		if best == "" || compareVersions(v, best) > 0 {
-			best = v
+		if highest == "" || compareVersions(v, highest) > 0 {
+			highest = v
 		}
 	}
-	if best == "" {
+	if highest == "" {
 		return hullVersion
 	}
-	return best
+	if compareVersions(highest, hullVersion) < 0 {
+		return highest
+	}
+	return hullVersion
 }
 
 // looksLikeVersion reports whether s is a dotted numeric version.

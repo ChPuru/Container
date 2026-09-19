@@ -60,7 +60,17 @@ func runInit() error {
 		// filter and credentials already applied are inherited by the
 		// child, so the supervisor is no more privileged than what it
 		// supervises.
-		if err := initspec.CloseRangeFrom(3); err != nil {
+		//
+		// close_range(3, ~0) is deliberately NOT used here. The Go runtime
+		// is still running and owns descriptors of its own - the netpoll
+		// epoll fd among them - and closing those crashes the supervisor
+		// instead of confining it. Closing the handshake descriptors, whose
+		// close-on-exec flag the runtime cleared on purpose, and re-arming
+		// close-on-exec on everything else gives the entrypoint the same
+		// guarantee: nothing above stderr survives the execve
+		// (CVE-2024-21626).
+		initspec.CloseHandshakeFDs()
+		if err := initspec.SetCloexecFrom(3); err != nil {
 			return err
 		}
 		path, lerr := initspec.LookupInPath(cfg.Exec.Process.Args[0], cfg.Exec.Process.Env)

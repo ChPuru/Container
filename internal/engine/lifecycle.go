@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/rahuldhali/hull/internal/events"
@@ -39,49 +38,72 @@ func (e *Engine) Start(ctx context.Context, idOrName string, attach *AttachConfi
 	if err != nil {
 		return err
 	}
-	defer unlock()
-	return e.startLocked(ctx, id, attach)
-}
-
-// startLocked is Start with the container's lock already held.
-func (e *Engine) startLocked(ctx context.Context, id string, attach *AttachConfig) error {
-	c, err := e.lookup(id)
+	live, err := e.startLocked(ctx, id, attach)
+	// The container's lock is released before the attachment is pumped. An
+	// interactive run holds its stream open for as long as the process lives,
+	// and keeping the container lock for that long would make a Stop on the
+	// same container wait for the user to press a key.
+	unlock()
 	if err != nil {
 		return err
+	}
+	if live == nil {
+		return nil
+	}
+	return e.runAttachment(ctx, id, live.stream, live.cfg, live.tty)
+}
+
+// startedAttachment is the stream Start opened before it released the
+// container lock, handed back so the caller can pump it without holding it.
+type startedAttachment struct {
+	// stream is the live attachment.
+	stream Stream
+	// cfg is the client's attach request.
+	cfg AttachConfig
+	// tty reports that the container merges its output streams.
+	tty bool
+}
+
+// startLocked is Start with the container's lock already held. It returns the
+// attachment to pump, if one was asked for.
+func (e *Engine) startLocked(ctx context.Context, id string, attach *AttachConfig) (*startedAttachment, error) {
+	c, err := e.lookup(id)
+	if err != nil {
+		return nil, err
 	}
 	switch c.State {
 	case types.StateRunning:
 		// Docker answers 304 here and the CLI treats it as success; making it
 		// an error would break every "start it if it is not running" script.
-		return nil
+		return nil, nil
 	case types.StatePaused:
-		return fmt.Errorf("%w: %s is paused; unpause it before starting it", ErrConflict, idShort(id))
+		return nil, fmt.Errorf("%w: %s is paused; unpause it before starting it", ErrConflict, idShort(id))
 	case types.StateRemoving:
-		return fmt.Errorf("%w: %s is being removed", ErrConflict, idShort(id))
+		return nil, fmt.Errorf("%w: %s is being removed", ErrConflict, idShort(id))
 	}
 	if e.cfg.ShimBinary == "" {
-		return fmt.Errorf("%w: no hull-shim binary is configured, so containers cannot be supervised", ErrInvalid)
+		return nil, fmt.Errorf("%w: no hull-shim binary is configured, so containers cannot be supervised", ErrInvalid)
 	}
 	if e.runtimeBinary == "" {
-		return fmt.Errorf("%w: install crun or runc, or pass --runtime with a path", ErrNoRuntimeBinary)
+		return nil, fmt.Errorf("%w: install crun or runc, or pass --runtime with a path", ErrNoRuntimeBinary)
 	}
 
 	img, err := e.images.Get(c.Image)
 	if err != nil {
-		return fmt.Errorf("engine: the image %s for %s is gone: %w", idShort(c.Image), idShort(id), err)
+		return nil, fmt.Errorf("engine: the image %s for %s is gone: %w", idShort(c.Image), idShort(id), err)
 	}
 
 	// The overlay may have been torn down by a crash or by a daemon restart.
 	if mounted, merr := e.snaps.IsMounted(id); merr != nil || !mounted {
 		rootfs, rerr := e.snaps.Mount(ctx, id, c.SnapshotID, c.HostConfig.ReadonlyRootfs)
 		if rerr != nil {
-			return fmt.Errorf("engine: mount the rootfs for %s: %w", idShort(id), rerr)
+			return nil, fmt.Errorf("engine: mount the rootfs for %s: %w", idShort(id), rerr)
 		}
 		c.RootFS = rootfs
 	}
 	if _, serr := os.Stat(filepath.Join(e.containerDir(id), "config.json")); serr != nil {
 		if _, gerr := e.generateBundle(c, img); gerr != nil {
-			return gerr
+			return nil, gerr
 		}
 	}
 
@@ -96,7 +118,7 @@ func (e *Engine) startLocked(ctx context.Context, id string, attach *AttachConfi
 
 	sup, err := e.spawner.Spawn(ctx, e.shimConfig(c))
 	if err != nil {
-		return fmt.Errorf("engine: start the shim for %s: %w", idShort(id), err)
+		return nil, fmt.Errorf("engine: start the shim for %s: %w", idShort(id), err)
 	}
 	started := false
 	defer func() {
@@ -114,23 +136,23 @@ func (e *Engine) startLocked(ctx context.Context, id string, attach *AttachConfi
 
 	st, err := sup.State(ctx)
 	if err != nil {
-		return fmt.Errorf("engine: read the state of %s from its shim: %w", idShort(id), err)
+		return nil, fmt.Errorf("engine: read the state of %s from its shim: %w", idShort(id), err)
 	}
 	c.Pid = st.Pid
 
 	// The network needs a live namespace, which is why the veth is created
 	// here and not at create time.
 	if err := e.attachNetworks(ctx, c); err != nil {
-		return err
+		return nil, err
 	}
 	if err := e.nets.ConfigureSandbox(ctx, c.Pid, c); err != nil {
-		return fmt.Errorf("engine: configure the sandbox of %s: %w", idShort(id), err)
+		return nil, fmt.Errorf("engine: configure the sandbox of %s: %w", idShort(id), err)
 	}
 	if err := e.syncSandboxFiles(id); err != nil {
-		return err
+		return nil, err
 	}
 	if err := e.publishPorts(ctx, c); err != nil {
-		return err
+		return nil, err
 	}
 
 	var stream Stream
@@ -142,7 +164,7 @@ func (e *Engine) startLocked(ctx context.Context, id string, attach *AttachConfi
 			DetachKeys: attach.DetachKeys,
 		})
 		if err != nil {
-			return fmt.Errorf("engine: attach to %s: %w", idShort(id), err)
+			return nil, fmt.Errorf("engine: attach to %s: %w", idShort(id), err)
 		}
 	}
 
@@ -150,7 +172,7 @@ func (e *Engine) startLocked(ctx context.Context, id string, attach *AttachConfi
 		if stream != nil {
 			_ = stream.Close()
 		}
-		return fmt.Errorf("engine: start %s: %w", idShort(id), err)
+		return nil, fmt.Errorf("engine: start %s: %w", idShort(id), err)
 	}
 	started = true
 
@@ -171,7 +193,7 @@ func (e *Engine) startLocked(ctx context.Context, id string, attach *AttachConfi
 		}
 		return nil
 	}); err != nil {
-		return err
+		return nil, err
 	}
 	c.State = types.StateRunning
 	c.StartedAt = now
@@ -182,9 +204,9 @@ func (e *Engine) startLocked(ctx context.Context, id string, attach *AttachConfi
 	e.emit(events.ActionStart, c, nil)
 
 	if stream != nil {
-		e.runAttachment(ctx, id, stream, *attach, c.Config.Tty)
+		return &startedAttachment{stream: stream, cfg: *attach, tty: c.Config.Tty}, nil
 	}
-	return nil
+	return nil, nil
 }
 
 // shimConfig builds the supervision request for one container.
@@ -468,7 +490,7 @@ func (e *Engine) Restart(ctx context.Context, idOrName string, timeout *int) err
 	if err := e.stopLocked(ctx, id, timeout, true); err != nil {
 		return err
 	}
-	if err := e.startLocked(ctx, id, nil); err != nil {
+	if _, err := e.startLocked(ctx, id, nil); err != nil {
 		return err
 	}
 	c, err := e.lookup(id)
@@ -761,7 +783,3 @@ func (e *Engine) Resize(ctx context.Context, idOrName string, h, w uint16) error
 	}
 	return nil
 }
-
-// signalOf is a small helper so callers can log a signal without importing
-// syscall.
-func signalOf(sig syscall.Signal) string { return SignalName(sig) }

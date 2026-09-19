@@ -2,7 +2,9 @@ package foldersync
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"sort"
 	"time"
 )
@@ -161,15 +163,21 @@ func (s *Syncer) reconcile(rel string, h entry, hOK bool, v entry, vOK bool, pre
 		win := s.winner(hostChanged, volChanged, h, v)
 		lose := other(win)
 		loser, _ := cur.get(lose)
+		writable := s.canWrite(lose)
 
-		var kept string
 		if conflict {
 			res.Conflicts++
-			k, err := s.preserveLoser(lose, rel, loser, now)
-			if err != nil {
-				s.fail(res, rel, err)
+			// Only a side that is about to be overwritten needs its copy
+			// preserved; a direction that forbids writing it leaves it where
+			// it is, and the event still reports the divergence.
+			var kept string
+			if writable {
+				k, err := s.preserveLoser(lose, rel, loser, now)
+				if err != nil {
+					s.fail(res, rel, err)
+				}
+				kept = k
 			}
-			kept = k
 			s.emit(Event{
 				Kind:        EventConflict,
 				Path:        rel,
@@ -180,7 +188,7 @@ func (s *Syncer) reconcile(rel string, h entry, hOK bool, v entry, vOK bool, pre
 				Kept:        kept,
 			})
 		}
-		if !s.canWrite(lose) {
+		if !writable {
 			return s.observe(rel, res)
 		}
 		winner, _ := cur.get(win)
@@ -287,9 +295,19 @@ func (s *Syncer) winner(hostChanged, volChanged bool, h, v entry) Side {
 }
 
 // doCopy performs one copy and books it.
+//
+// A source that has vanished since the scan is not a failure. A live project
+// deletes files under the syncer constantly - a compiler's temporary output, an
+// editor's backup, a directory this very pass renamed out of the way because it
+// lost a conflict - and the next pass sees the truth anyway.
 func (s *Syncer) doCopy(rel string, from, to Side, e entry, res *Result) {
 	n, err := s.copyEntry(rel, from, to, e)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			if _, ok, serr := statEntry(s.root(from), rel); serr == nil && !ok {
+				return
+			}
+		}
 		s.fail(res, rel, err)
 		return
 	}

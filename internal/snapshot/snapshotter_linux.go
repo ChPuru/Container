@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/rahuldhali/hull/internal/content"
+	"github.com/rahuldhali/hull/internal/explain"
 	"github.com/rahuldhali/hull/internal/fsutil"
 	"github.com/rahuldhali/hull/internal/layer"
 	"github.com/rahuldhali/hull/internal/types"
@@ -312,6 +313,7 @@ func (s *Snapshotter) Prepare(ctx context.Context, chainID string, parentChainID
 		}
 	}
 
+	explain.FromContext(ctx).Step(explain.KindSnapshot, "prepare %s over parent %q", cid, parent)
 	// Serialise inside this process first, so that the flock below is only ever
 	// contended by another process and never spins against ourselves.
 	if err := s.waitForPrep(ctx, cid); err != nil {
@@ -440,6 +442,7 @@ func (s *Snapshotter) Commit(ctx context.Context, chainID string, diffID string,
 	if !fsutil.IsDir(filepath.Join(dir, DirFS)) {
 		return fmt.Errorf("snapshot: commit %s: %s was never prepared: %w", cid, dir, ErrNotFound)
 	}
+	explain.FromContext(ctx).Step(explain.KindSnapshot, "commit %s (diffID %s, %d bytes) -> %s/.complete", cid, did, size, dir)
 
 	s.mu.Lock()
 	p := s.preps[cid]
@@ -589,6 +592,7 @@ func (s *Snapshotter) unpackLayer(ctx context.Context, chain, parent, diffID str
 		}
 	}()
 
+	explain.FromContext(ctx).Step(explain.KindImage, "apply layer %s (%s, %d bytes) into the snapshot for %s", desc.Digest, desc.MediaType, desc.Size, chain)
 	blob, err := store.Open(desc.Digest)
 	if err != nil {
 		return fmt.Errorf("open blob: %w", err)

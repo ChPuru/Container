@@ -109,9 +109,10 @@ func (p *poller) poll(ctx context.Context) (changes, error) {
 
 	var c changes
 	if !p.primed {
+		// Priming observes nothing, so it is not evidence of an idle tree and
+		// must not advance the backoff.
 		p.prev = cur
 		p.primed = true
-		p.backoff(false)
 		return c, nil
 	}
 

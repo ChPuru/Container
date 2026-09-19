@@ -151,15 +151,18 @@ func (e *Engine) Create(ctx context.Context, name string, cfg types.ContainerCon
 
 	// 4. Volumes. Resolve materialises every named and anonymous volume, takes
 	//    a reference for this container and seeds a fresh one from the image.
-	var mounts []types.Mount
-	if mounts, err = e.vols.Resolve(ctx, c); err != nil {
-		return nil, fmt.Errorf("engine: resolve mounts for %s: %w", idShort(id), err)
-	}
+	//    The compensator is registered first, because Resolve takes its
+	//    references one at a time and a failure halfway through still leaves
+	//    some of them held.
 	un.push(func() {
 		if rerr := e.vols.Release(context.WithoutCancel(ctx), c, true); rerr != nil {
 			un.log(rerr)
 		}
 	})
+	var mounts []types.Mount
+	if mounts, err = e.vols.Resolve(ctx, c); err != nil {
+		return nil, fmt.Errorf("engine: resolve mounts for %s: %w", idShort(id), err)
+	}
 	c.HostConfig.Mounts = mounts
 	c.HostConfig.Binds = nil
 	c.HostConfig.Tmpfs = nil

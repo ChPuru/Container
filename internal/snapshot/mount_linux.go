@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/rahuldhali/hull/internal/explain"
 	"github.com/rahuldhali/hull/internal/fsutil"
 )
 
@@ -358,6 +359,7 @@ func (s *Snapshotter) mountOverlay(ctx context.Context, cdir string, lowerDirs [
 			if readonly {
 				flags |= unix.MS_RDONLY
 			}
+			explain.FromContext(ctx).Step(explain.KindMount, "mount(\"overlay\", %q, \"overlay\", %#x, %q)", merged, flags, opts)
 			if merr := unix.Mount("overlay", merged, "overlay", flags, opts); merr != nil {
 				return stack, fmt.Errorf("mount -t overlay overlay -o %s %s: %w", opts, merged, merr)
 			}
@@ -388,6 +390,7 @@ func (s *Snapshotter) mountOverlay(ctx context.Context, cdir string, lowerDirs [
 		if cerr != nil {
 			return stack, cerr
 		}
+		explain.FromContext(ctx).Step(explain.KindMount, "the option string exceeds one page, so %d lower layers fold into a nested read-only overlay at %q", len(chunk), mp)
 		if merr := unix.Mount("overlay", mp, "overlay", unix.MS_RDONLY, chunkOpts); merr != nil {
 			return stack, fmt.Errorf("%w: folding %d lower layers into the nested mount %s failed: %v",
 				ErrOptionsTooLong, len(chunk), mp, merr)

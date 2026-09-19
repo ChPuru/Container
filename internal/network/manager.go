@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rahuldhali/hull/internal/explain"
 	"github.com/rahuldhali/hull/internal/fsutil"
 	"github.com/rahuldhali/hull/internal/idutil"
 	"github.com/rahuldhali/hull/internal/types"
@@ -383,6 +384,7 @@ func (m *Manager) realise(ctx context.Context, n *types.Network) error {
 		}
 	}
 	mtu := m.networkMTU(n)
+	explain.FromContext(ctx).Step(explain.KindNetwork, "RTM_NEWLINK bridge %s mtu %d, then RTM_NEWADDR %s/%s", n.BridgeName, mtu, gw, n.IPAM.Subnet)
 	if err := m.links.EnsureBridge(ctx, n.BridgeName, mtu); err != nil {
 		return err
 	}
@@ -795,6 +797,7 @@ func (m *Manager) Connect(ctx context.Context, netID string, c *types.Container,
 		_ = m.ipam.Free(n.ID, ip)
 	}
 
+	explain.FromContext(ctx).Step(explain.KindNetwork, "RTM_NEWLINK veth %s <-> %s mtu %d, master %s", hostIf, peerIf, mtu, n.BridgeName)
 	if err := m.links.CreateVeth(ctx, hostIf, peerIf, mtu); err != nil {
 		_ = m.ipam.Free(n.ID, ip)
 		return nil, err
@@ -807,6 +810,7 @@ func (m *Manager) Connect(ctx context.Context, netID string, c *types.Container,
 		cleanup()
 		return nil, err
 	}
+	explain.FromContext(ctx).Step(explain.KindNetwork, "RTM_SETLINK %s IFLA_NET_NS_FD %s, renamed to %s with address %s", peerIf, nsPath, ifName, ip)
 	if err := m.links.MoveToNetNS(ctx, peerIf, pid, nsPath); err != nil {
 		cleanup()
 		return nil, err
@@ -1250,6 +1254,7 @@ func (m *Manager) PublishPorts(ctx context.Context, c *types.Container, bindings
 					return fail(fmt.Errorf("%w: host port %q in binding for %s", ErrInvalidConfig, b.HostPort, spec))
 				}
 			}
+			explain.FromContext(ctx).Step(explain.KindNetwork, "listen(%s/%s:%d) in the root netns, relayed to %s:%d   (WSL only forwards ports it can see a LISTEN socket for)", proto, hostIP, hostPort, containerIP, cPort)
 			bound, closer, err := startProxy(ctx, proto, hostIP, hostPort, containerIP, cPort)
 			if err != nil {
 				return fail(fmt.Errorf("network: publish %s for %s: %w", spec, idutil.TruncateID(c.ID), err))
@@ -1367,6 +1372,7 @@ func (m *Manager) ruleset() Ruleset {
 // under the lock and applied outside it, so a slow nft invocation never blocks
 // a DNS lookup.
 func (m *Manager) applyRules(ctx context.Context) error {
+	explain.FromContext(ctx).Step(explain.KindNetwork, "nft flush + reload table inet hull, plus the iptables FORWARD accept Docker Desktop's DROP policy needs")
 	return m.fw.Apply(ctx, m.ruleset())
 }
 
