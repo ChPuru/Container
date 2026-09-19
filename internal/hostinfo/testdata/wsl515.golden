@@ -1,0 +1,108 @@
+hull doctor  2026-09-19T12:00:00Z
+
+Kernel
+  release          5.15.167.4-microsoft-standard-WSL2
+  version          #1 SMP Tue Nov 5 00:21:55 UTC 2024
+  arch             x86_64
+  parsed           5.15
+  kconfig          /proc/config.gz (3 options)
+
+WSL
+  is wsl           yes
+  distro           ubuntu
+  interop          yes
+  systemd pid1     yes
+  mirrored net     no
+  /mnt/wsl         yes
+  generation       WSL kernel 5.15.167.4-microsoft-standard-WSL2 (legacy 5.15 generation: hybrid cgroups, no PSI, no idmapped overlay)
+
+Cgroups
+  mode             hybrid
+  unified root     /sys/fs/cgroup/unified
+  v2 controllers   (none)
+  v2 subtree       (none)
+  v1 controllers   blkio cpu memory pids
+  nsdelegate       yes
+  cgroup.kill      yes
+  cgroup.freeze    yes
+  psi              no
+
+Overlay
+  supported        yes
+  redirect_dir     N
+  metacopy         N
+  index            N
+  xino             N
+  userxattr        yes
+  lowerdir+        no
+  idmapped layers  no
+  live mount test  mounted and unmounted cleanly
+
+Namespaces
+  available        user pid net mnt ipc uts cgroup
+  max user ns      31286
+  unpriv clone     sysctl absent (unrestricted)
+  subuid           100000:65536
+  subgid           100000:65536
+
+Security
+  seccomp          yes
+  seccomp actions  kill_process kill_thread trap errno user_notif trace log allow
+  no_new_privs     no
+  landlock         ABI 1
+  apparmor         no
+  selinux          no
+  cap bounding     41 capabilities
+
+Storage
+  data root        /var/lib/hull
+  probed path      /var/lib
+  fstype           ext4
+  free             918.2 GiB of 1006.9 GiB
+  d_type           yes
+  on drvfs         no
+
+Network
+  ip_forward       no
+  bridge           yes
+  veth             yes
+  nf_tables        yes
+  nft binary       /usr/sbin/nft
+  iptables binary  /usr/sbin/iptables
+  iptables nat     yes
+  docker present   yes
+  FORWARD policy   DROP (via iptables)
+  wsl nat subnet   172.22.80.0/20
+  claimed subnets  172.17.0.0/16 172.22.80.0/20
+
+Checks
+  [fail]  cgroup v2 delegated   hybrid cgroups: /sys/fs/cgroup/unified has an empty cgroup.controllers, so no v2 controller is delegated
+                                -> Run 'wsl --update' on Windows for a 6.x kernel with pure cgroup v2, or add
+                                   kernelCommandLine = cgroup_no_v1=all under [wsl2] in %USERPROFILE%\.wslconfig,
+                                   then 'wsl --shutdown'.
+  [fail]  ip_forward            net.ipv4.ip_forward = 0
+                                -> Containers on a hull bridge cannot reach the outside world. Run 'sysctl -w
+                                   net.ipv4.ip_forward=1' and persist it in /etc/sysctl.d/99-hull.conf.
+  [warn]  FORWARD policy        filter FORWARD policy is DROP (reported by iptables); Docker Desktop shares this VM and installs that policy
+                                -> hull inserts an explicit ACCEPT for its bridge; if container networking still
+                                   fails, check 'iptables -S FORWARD'
+  [warn]  cgroup hierarchy      cgroup2 is mounted at /sys/fs/cgroup/unified but cgroup.controllers is empty
+                                -> This is a kernel capability gap, not a misconfiguration: run 'wsl --update' on
+                                   Windows for a 6.x kernel with pure cgroup v2, then 'wsl --shutdown'.
+  [warn]  kernel version        5.15.167.4-microsoft-standard-WSL2 (parsed 5.15)
+                                -> kernel 5.15 works but lacks PSI, idmapped overlay layers (5.19),
+                                   MOVE_MOUNT_BENEATH (6.5) and lowerdir+ (6.7), and ships hybrid cgroups. Run
+                                   'wsl --update' on Windows for the 6.6 kernel, then 'wsl --shutdown'.
+  [warn]  pressure stall info   /proc/pressure is absent (CONFIG_PSI unset on kernel 5.15.167.4-microsoft-standard-WSL2)
+                                -> pressure metrics need a 6.x WSL kernel
+  [ok]    bridge + veth         both drivers are available
+  [ok]    d_type support        readdir on /var/lib returns d_type: yes
+  [ok]    data root filesystem  /var/lib is ext4
+  [ok]    free space            918.2 GiB free of 1006.9 GiB on /var/lib
+  [ok]    landlock              ABI 1
+  [ok]    netfilter backend     nftables via /usr/sbin/nft
+  [ok]    overlayfs             live mount succeeded; redirect_dir=N metacopy=N index=N; no idmapped layers (needs 5.19)
+  [ok]    seccomp               actions: kill_process kill_thread trap errno user_notif trace log allow
+  [ok]    user namespaces       available; subuid 100000:65536, subgid 100000:65536, max 31286
+
+9 ok, 4 warn, 2 fail, 0 skip

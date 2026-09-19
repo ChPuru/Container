@@ -466,9 +466,13 @@ func (r *Report) Text(w io.Writer, color bool) error {
 		b.WriteString("  ")
 		b.WriteString(c.Detail)
 		b.WriteString("\n")
-		for _, line := range wrapText(c.Remedy, 78) {
+		for i, line := range wrapText(c.Remedy, 78) {
+			prefix := "-> "
+			if i > 0 {
+				prefix = "   "
+			}
 			b.WriteString(indent)
-			b.WriteString(p.wrap(ansiDim, "-> "+line))
+			b.WriteString(p.wrap(ansiDim, prefix+line))
 			b.WriteString("\n")
 		}
 		if c.Docs != "" {

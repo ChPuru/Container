@@ -292,31 +292,44 @@ func (w *walker) follow(target string, remaining []string) ([]string, error) {
 // is always added so the kernel never follows a link behind our back; a link
 // found here is reported as ELOOP for the caller to resolve, unless the caller
 // asked for O_NOFOLLOW itself.
-func (w *walker) openFinal(name string, flags int, mode os.FileMode) (*os.File, error) {
+// It returns a raw descriptor so the caller wraps it in exactly one os.File.
+func (w *walker) openFinal(name string, flags int, mode os.FileMode) (int, error) {
 	var m uint32
 	if flags&unix.O_CREAT != 0 || flags&unix.O_TMPFILE == unix.O_TMPFILE {
 		m = uint32(mode.Perm())
 	}
+	if flags&unix.O_NOFOLLOW == 0 {
+		// Look before leaping: with O_NOFOLLOW the kernel reports a symlink as
+		// ELOOP for a plain open but as ENOTDIR when O_DIRECTORY is also set,
+		// and not at all for O_PATH. An explicit lstat gives one answer for all
+		// three. The open below still carries O_NOFOLLOW, so an entry swapped
+		// for a symlink after this check fails loudly instead of being followed.
+		var lst unix.Stat_t
+		if err := unix.Fstatat(w.top(), name, &lst, unix.AT_SYMLINK_NOFOLLOW); err == nil &&
+			lst.Mode&unix.S_IFMT == unix.S_IFLNK {
+			return -1, unix.ELOOP
+		}
+	}
 	fd, err := unix.Openat(w.top(), name, flags|unix.O_NOFOLLOW|unix.O_CLOEXEC, m)
 	if err != nil {
-		return nil, err
+		return -1, err
 	}
 	var st unix.Stat_t
 	if err := unix.Fstat(fd, &st); err != nil {
 		unix.Close(fd)
-		return nil, err
+		return -1, err
 	}
 	if st.Dev != w.rootDev {
 		unix.Close(fd)
-		return nil, unix.EXDEV
+		return -1, unix.EXDEV
 	}
 	if st.Mode&unix.S_IFMT == unix.S_IFLNK && flags&unix.O_NOFOLLOW == 0 {
 		// Only reachable with O_PATH, which opens the link itself. The caller
 		// wanted the target, so report it like a non-O_PATH open would.
 		unix.Close(fd)
-		return nil, unix.ELOOP
+		return -1, unix.ELOOP
 	}
-	return os.NewFile(uintptr(fd), name), nil
+	return fd, nil
 }
 
 // secureOpenFallback resolves rel inside root without openat2, by opening each
@@ -339,13 +352,11 @@ func secureOpenFallback(root, rel string, flags int, mode os.FileMode) (*os.File
 	remaining := splitComponents(rel)
 	for {
 		if len(remaining) == 0 {
-			f, err := w.openFinal(".", flags, mode)
+			fd, err := w.openFinal(".", flags, mode)
 			if err != nil {
 				return nil, &os.PathError{Op: "openat", Path: display, Err: err}
 			}
-			f2 := os.NewFile(f.Fd(), display)
-			_ = f // f and f2 share the descriptor; only f2 escapes.
-			return f2, nil
+			return os.NewFile(uintptr(fd), display), nil
 		}
 		c := remaining[0]
 		remaining = remaining[1:]
@@ -356,9 +367,9 @@ func secureOpenFallback(root, rel string, flags int, mode os.FileMode) (*os.File
 		}
 
 		if len(remaining) == 0 {
-			f, ferr := w.openFinal(c, flags, mode)
+			fd, ferr := w.openFinal(c, flags, mode)
 			if ferr == nil {
-				return os.NewFile(f.Fd(), display), nil
+				return os.NewFile(uintptr(fd), display), nil
 			}
 			if !errors.Is(ferr, unix.ELOOP) || flags&unix.O_NOFOLLOW != 0 {
 				return nil, &os.PathError{Op: "openat", Path: display, Err: ferr}

@@ -53,9 +53,9 @@ func haveOpenat2() bool {
 // The zero value is not usable; call newResolver. A resolver is not safe for
 // concurrent use.
 type resolver struct {
-	root      int // not owned; the caller closes it
-	cachePath string
-	cacheFd   int
+	root       int // not owned; the caller closes it
+	cachePath  string
+	cacheFd    int
 	useOpenat2 bool
 }
 
@@ -145,13 +145,11 @@ func (r *resolver) step(dirfd int, name string, create bool) (int, error) {
 		}
 		return fd, nil
 	case errors.Is(err, unix.ENOTDIR):
-		if !create {
-			return -1, err
-		}
-		// A previous layer left a non-directory here. Tar semantics say the
-		// directory wins, but only if what is there is not a symlink: those we
-		// refuse rather than unlink, so a layer can never delete something
-		// outside dest by pointing at it.
+		// O_PATH|O_NOFOLLOW on a symlink opens the link itself, so the fallback
+		// walk reports a symlink component as ENOTDIR rather than ELOOP. Decide
+		// which it is before doing anything else: a symlink is always a refusal,
+		// never something to unlink, or a layer could delete a path outside dest
+		// merely by pointing at it.
 		var st unix.Stat_t
 		if serr := unix.Fstatat(dirfd, name, &st, unix.AT_SYMLINK_NOFOLLOW); serr != nil {
 			return -1, fmt.Errorf("stat %q: %w", name, serr)
@@ -159,6 +157,11 @@ func (r *resolver) step(dirfd int, name string, create bool) (int, error) {
 		if st.Mode&unix.S_IFMT == unix.S_IFLNK {
 			return -1, fmt.Errorf("%w: component %q is a symlink", ErrPathEscape, name)
 		}
+		if !create {
+			return -1, err
+		}
+		// A previous layer left a plain non-directory here; tar semantics say
+		// the directory wins.
 		if uerr := removeAt(dirfd, name); uerr != nil {
 			return -1, fmt.Errorf("replace %q with a directory: %w", name, uerr)
 		}

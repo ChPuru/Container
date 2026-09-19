@@ -1,0 +1,87 @@
+# A compose file that exercises the parts of the Docker API that compose actually leans on:
+# dependency ordering, healthchecks, named volumes, a user-defined network with DNS, port
+# publishing, env files, restart policy and resource limits.
+#
+#   DOCKER_HOST=unix:///var/lib/hull/run/hull.sock docker compose -f test/conformance/compose.yaml up -d
+#   docker compose -f test/conformance/compose.yaml ps
+#   docker compose -f test/conformance/compose.yaml down -v
+#
+# If this comes up clean, hull is a usable daily driver.
+
+name: hullconformance
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: conformance
+      POSTGRES_DB: app
+    volumes:
+      # Exercises image-volume seeding: postgres ships an initialised data directory, and a
+      # fresh named volume must receive it or the container exits immediately.
+      - pgdata:/var/lib/postgresql/data
+    networks: [back]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  cache:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    networks: [back]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
+  api:
+    image: alpine:3.20
+    # Proves service-name DNS on a user-defined network, and that depends_on's
+    # service_healthy condition works — which needs healthchecks and the events stream.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        echo "resolving peers over the user-defined network"
+        getent hosts db    > /dev/null && echo "db resolves"
+        getent hosts cache > /dev/null && echo "cache resolves"
+        echo "reading the env file"
+        test "$$GREETING" = "hello from the env file"
+        echo "serving on :8000"
+        while :; do
+          printf 'HTTP/1.1 200 OK\r\nContent-Length: 3\r\nConnection: close\r\n\r\nok\n' | nc -l -p 8000
+        done
+    env_file: [./conformance.env]
+    depends_on:
+      db: { condition: service_healthy }
+      cache: { condition: service_healthy }
+    networks: [back, front]
+    ports:
+      - "18081:8000"
+    restart: unless-stopped
+
+  probe:
+    image: alpine:3.20
+    # A one-shot job: compose must report its exit code correctly.
+    command: ["sh", "-c", "sleep 3 && wget -qO- http://api:8000/ | grep -q ok && echo 'end-to-end ok'"]
+    depends_on: [api]
+    networks: [front]
+    restart: "no"
+
+volumes:
+  pgdata:
+
+networks:
+  back:
+    driver: bridge
+  front:
+    driver: bridge

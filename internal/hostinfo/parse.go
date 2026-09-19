@@ -130,7 +130,10 @@ func ParseKernelRelease(release string) (major, minor int, err error) {
 	if err != nil {
 		return 0, 0, fmt.Errorf("hostinfo: kernel release %q major: %w", release, err)
 	}
-	if len(parts) > 1 && parts[1] != "" {
+	if len(parts) > 1 {
+		if parts[1] == "" {
+			return 0, 0, fmt.Errorf("hostinfo: kernel release %q has a trailing dot with no minor version", release)
+		}
 		minor, err = strconv.Atoi(parts[1])
 		if err != nil {
 			return 0, 0, fmt.Errorf("hostinfo: kernel release %q minor: %w", release, err)
@@ -175,6 +178,20 @@ func ParsePlainKernelConfig(r io.Reader) (map[string]string, error) {
 		return nil, fmt.Errorf("hostinfo: reading kernel config: %w", err)
 	}
 	return out, nil
+}
+
+// configIs reports whether a CONFIG_ option has one of the given values.
+func configIs(cfg map[string]string, key string, values ...string) bool {
+	v, ok := cfg[key]
+	if !ok {
+		return false
+	}
+	for _, want := range values {
+		if v == want {
+			return true
+		}
+	}
+	return false
 }
 
 // ParseOSRelease parses an os-release file into its key/value pairs, stripping

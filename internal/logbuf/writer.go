@@ -63,6 +63,15 @@ var streamOrder = [...]string{StreamStdout, StreamStderr}
 // NewWriter opens (creating if needed) the json-file log at path and returns a
 // Writer appending to it. The caller must Close it to flush the last fragment.
 func NewWriter(path string, opts WriterOptions) (*Writer, error) {
+	return newWriter(path, opts, DefaultFlushInterval)
+}
+
+// newWriter is NewWriter with the idle-flush interval exposed, so tests can
+// make the timer deterministic.
+func newWriter(path string, opts WriterOptions, flushInterval time.Duration) (*Writer, error) {
+	if flushInterval <= 0 {
+		flushInterval = DefaultFlushInterval
+	}
 	if path == "" {
 		return nil, errors.New("logbuf: NewWriter: empty log path")
 	}
@@ -84,7 +93,7 @@ func NewWriter(path string, opts WriterOptions) (*Writer, error) {
 	w := &Writer{
 		path:          path,
 		opts:          opts,
-		flushInterval: DefaultFlushInterval,
+		flushInterval: flushInterval,
 		f:             f,
 		size:          st.Size(),
 		pend:          make(map[string]*pending, 2),

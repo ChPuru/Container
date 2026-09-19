@@ -117,6 +117,44 @@ Each package owns one subsystem. Packages may only import packages *below* them.
   **long-lived `wsl.exe --exec` stdio relay** (with `WSL_UTF8=1`), with an optional
   TCP-on-loopback transport guarded by a shared secret.
 
+### Validated on this host (2026-09-19)
+
+The three load-bearing kernel paths were exercised directly on WSL 2.4.13 / kernel 5.15.167.4
+before the engine was written, so the design is not resting on assumptions:
+
+- **Runtime** — a hand-written OCI bundle over a static-busybox rootfs runs under `crun 1.14.1`:
+  it pivots into the new root, sees its own PID namespace, and exits 0. The fallback runtime the
+  design depends on is real and works here.
+- **Overlayfs** — a two-lower stack mounts with
+  `redirect_dir=off,metacopy=off,index=off`, upper-layer precedence resolves correctly, a new
+  file lands in `upperdir`, and a deletion materialises as a **character device whiteout**
+  (`c---------`), which is exactly the form `internal/layer`'s `Diff` has to convert into
+  `.wh.<name>`.
+- **Networking** — a bridge plus a veth pair with one end moved into a fresh network namespace
+  passes traffic to the gateway, and an `inet` nftables table can be created and dropped cleanly.
+- **cgroups** — `/sys/fs/cgroup/cgroup.controllers` is **empty**, confirming the hybrid-cgroup
+  problem. Resource limits will not work until `wsl --update` or `cgroup_no_v1=all`, and
+  `hull doctor` must say so rather than failing at `run` time.
+- **Registry** — the full Docker Hub flow works from this network over IPv4: an unauthenticated
+  manifest request returns `401` with a parseable `WWW-Authenticate`, the token dance succeeds,
+  and `library/alpine:3.20` comes back as an `application/vnd.oci.image.index.v1+json` with 16
+  platform entries, from which the linux/amd64 manifest, its 612-byte config and its single
+  3.6 MB gzip layer resolve cleanly. The client must dispatch on `Content-Type`, not on what it
+  asked for in `Accept`.
+  **Rate limit, resolved:** the research recorded a conflict between Docker's docs (100 pulls per
+  6 hours) and an observed header. The live header on this host is `ratelimit-limit: 100;w=3600`
+  — **100 per hour**, not per 6 hours. Read the header; do not hard-code the documented number.
+- **Windows transport** — a long-lived `wsl.exe -d Ubuntu -u root --exec /bin/cat` child carried
+  200 consecutive 70-byte frames with zero corruption and shut down cleanly, with `WSL_UTF8=1`
+  set. The stdio relay is a sound default transport, which matters because hvsock needs the VM's
+  runtime ID and there is no supported way to discover it.
+- Docker Desktop was not running, so the iptables `FORWARD` policy was `ACCEPT`. The explicit
+  ACCEPT rule for hull's bridge is still required, because the policy flips to `DROP` the moment
+  Docker Desktop starts.
+- A backgrounded `wsl.exe` whose Windows parent exits is torn down within seconds — observed
+  while bootstrapping the toolchain. This is the same lifecycle rule that forces the Windows
+  keep-alive agent, and it is not theoretical.
+
 ## Security posture
 
 Every recent runc breakout came from path-based operations against an attacker-

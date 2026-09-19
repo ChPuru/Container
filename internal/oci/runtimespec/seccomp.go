@@ -66,8 +66,8 @@ type LinuxSeccompFlag string
 
 // Seccomp filter flags.
 const (
-	FlagLog            LinuxSeccompFlag = "SECCOMP_FILTER_FLAG_LOG"
-	FlagSpecAllow      LinuxSeccompFlag = "SECCOMP_FILTER_FLAG_SPEC_ALLOW"
+	FlagLog              LinuxSeccompFlag = "SECCOMP_FILTER_FLAG_LOG"
+	FlagSpecAllow        LinuxSeccompFlag = "SECCOMP_FILTER_FLAG_SPEC_ALLOW"
 	FlagWaitKillableRecv LinuxSeccompFlag = "SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV"
 )
 

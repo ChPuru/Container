@@ -236,9 +236,9 @@ func TestParseMemoryStatFields(t *testing.T) {
 
 func TestParseIOStat(t *testing.T) {
 	tests := []struct {
-		name            string
-		text            string
-		wantR, wantW    uint64
+		name         string
+		text         string
+		wantR, wantW uint64
 	}{
 		{"two devices are summed", goldenIOStat, 1536, 2304},
 		{"empty", "", 0, 0},

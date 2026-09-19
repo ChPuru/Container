@@ -26,7 +26,7 @@ func buildChecks(r *Report) []Check {
 		add(Check{
 			Name:   "cgroup hierarchy",
 			Detail: w,
-			Remedy: "See 'hull doctor' cgroup remedy above; hull cannot enforce resource limits without delegated v2 controllers.",
+			Remedy: "This is a kernel capability gap, not a misconfiguration: run 'wsl --update' on Windows for a 6.x kernel with pure cgroup v2, then 'wsl --shutdown'.",
 			Status: StatusWarn,
 		})
 	}
