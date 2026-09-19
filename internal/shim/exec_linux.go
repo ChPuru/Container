@@ -155,13 +155,11 @@ func (s *supervisor) Exec(ctx context.Context, id string, spec []byte, terminal,
 		return nil, err
 	}
 	os.Remove(pidPath)
-	pfd, err := OpenPidFD(pid)
-	if err != nil {
-		e.cleanupFiles()
-		return nil, err
-	}
-	e.pid, e.pidfd = pid, pfd
+	e.pid = pid
 
+	// Wire up the streams before anything can block: even an exec that has
+	// already finished left bytes in the pipes, and they still belong to the
+	// caller.
 	var stdin io.WriteCloser
 	switch {
 	case e.master != nil:
@@ -175,6 +173,22 @@ func (s *supervisor) Exec(ctx context.Context, id string, spec []byte, terminal,
 	s.execMu.Lock()
 	s.execs[id] = e
 	s.execMu.Unlock()
+
+	// A short-lived exec — `echo hi`, a healthcheck probe — can be gone before
+	// pidfd_open runs, and the shim's own reaper may already have collected
+	// it. ESRCH is therefore a normal outcome here, not a failure: the status
+	// is waiting in the reaper's table, so finish the exec directly instead of
+	// pretending it never started.
+	pfd, err := OpenPidFD(pid)
+	if err != nil {
+		if errors.Is(err, unix.ESRCH) {
+			go s.finishExec(e)
+			return e, nil
+		}
+		e.cleanupFiles()
+		return nil, err
+	}
+	e.pidfd = pfd
 
 	go s.watchExec(e)
 	return e, nil
@@ -259,9 +273,18 @@ func (e *execProc) startCopiers() {
 
 // watchExec waits for one exec to exit and publishes its status.
 func (s *supervisor) watchExec(e *execProc) {
-	if err := e.pidfd.WaitExit(context.Background()); err != nil {
-		log.Printf("shim: wait for exec %s: %v", e.id, err)
+	if e.pidfd != nil {
+		if err := e.pidfd.WaitExit(context.Background()); err != nil {
+			log.Printf("shim: wait for exec %s: %v", e.id, err)
+		}
 	}
+	s.finishExec(e)
+}
+
+// finishExec collects an exec's status, drains its output and publishes its
+// exit. It is reached both from the pidfd watcher and directly, for an exec
+// that was already gone by the time the shim looked.
+func (s *supervisor) finishExec(e *execProc) {
 	code := 255
 	ctx, cancel := context.WithTimeout(context.Background(), reapWindow)
 	ws, err := s.rp.wait(ctx, e.pid)

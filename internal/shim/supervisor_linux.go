@@ -178,10 +178,15 @@ func (s *supervisor) Create(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// Opened while the init is still parked in the runtime's create step, so
-	// the pid cannot have been recycled between the file and this call.
+	// Opened while the init is still parked in the runtime's create step
+	// waiting to be started, so the pid cannot have been recycled between the
+	// pid file and this call — and if the init is somehow already gone, that
+	// is a broken bundle, not a race the shim should paper over.
 	pfd, err := OpenPidFD(pid)
 	if err != nil {
+		if errors.Is(err, unix.ESRCH) {
+			return fmt.Errorf("shim: the container's init (pid %d) was gone before it could be supervised; the %s create may have failed halfway", pid, s.cfg.RuntimeName)
+		}
 		return err
 	}
 	s.pidfd = pfd

@@ -135,6 +135,24 @@ crun run                            -> "3.20.10 from the real pulled image"
 That last line is Alpine 3.20.10's own `/etc/alpine-release`, read from inside the container.
 Registry → content store → layer applier → snapshotter → runtime all work together.
 
+### Port publishing, proven the WSL way (2026-09-19)
+
+The riskiest WSL assumption in the whole design — that a published port needs a *real listening
+socket in the root network namespace*, because NAT-mode localhost forwarding polls `sock_diag`
+for `LISTEN` sockets and a DNAT-only rule is invisible to it — was tested directly:
+
+```
+endpoint      ip=10.66.2.2  mac=5a:69:1b:d6:a6:fd  host-if=hv-8f910b  (netns pid 2390)
+published     0.0.0.0:18099 -> 10.66.2.2:18099/tcp
+root netns    LISTEN 0 4096 *:18099  users:(("hull",pid=2375,fd=11))     <- WSL relays this
+GET 127.0.0.1:18099  ->  served-from-inside-the-netns
+unpublish     0 sockets left on :18099
+```
+
+The server was busybox httpd running inside the container's own network namespace, reached from
+the host through hull's userland proxy. The MAC is random rather than derived from the IP, which
+is the bocker bug the research flagged.
+
 ### Validated on this host (2026-09-19)
 
 The three load-bearing kernel paths were exercised directly on WSL 2.4.13 / kernel 5.15.167.4
