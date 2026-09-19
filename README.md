@@ -8,9 +8,16 @@ unchanged — and it ships its own CLI and TUI on top. The engine is written in 
 container internals (namespaces, cgroups, rootfs, layer store, networking) are implemented
 directly against the kernel rather than delegated to containerd or runc.
 
-> Status: **under active construction.** The subsystems land package by package; see
-> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and `hull doctor` for what your
-> machine actually supports.
+> Status: **under active construction**, but the core already works. hull pulls a real image
+> from Docker Hub, unpacks it into an overlayfs rootfs, generates the OCI bundle and runs a
+> container with Docker's default capability set, `no_new_privs`, a seccomp filter that actually
+> blocks, masked `/proc` paths and a read-only `/proc/sys`. Bridge networking, IPAM, nftables and
+> port publishing work against the real kernel.
+>
+> What is still landing: the Docker Engine API server, the CLI and TUI, and the Windows bridge.
+> See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and what has been verified on
+> real hardware, [docs/INTEGRATION-NOTES.md](docs/INTEGRATION-NOTES.md) for what broke and why,
+> and run `hull doctor` for what your own machine supports.
 
 ## Why not just use Docker Desktop
 

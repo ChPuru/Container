@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -253,24 +254,44 @@ func TestProbeFeaturesIsConsistent(t *testing.T) {
 
 // hullInitBinary returns the path of a hull-init binary to use in the
 // end-to-end tests, building one if HULL_INIT does not already name one.
+var (
+	initBuildOnce sync.Once
+	initBuildPath string
+	initBuildErr  error
+)
+
 func hullInitBinary(t *testing.T) string {
 	t.Helper()
-	if p := os.Getenv(InitBinaryEnv); p != "" {
-		if _, err := os.Stat(p); err == nil {
-			return p
+	initBuildOnce.Do(func() {
+		if p := os.Getenv(InitBinaryEnv); p != "" {
+			if _, err := os.Stat(p); err == nil {
+				initBuildPath = p
+				return
+			}
 		}
+		goBin, err := exec.LookPath("go")
+		if err != nil {
+			initBuildErr = err
+			return
+		}
+		dir, err := os.MkdirTemp("", "hull-init-build")
+		if err != nil {
+			initBuildErr = err
+			return
+		}
+		out := filepath.Join(dir, "hull-init")
+		cmd := exec.Command(goBin, "build", "-o", out, "github.com/rahuldhali/hull/cmd/hull-init")
+		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+		if b, berr := cmd.CombinedOutput(); berr != nil {
+			initBuildErr = fmt.Errorf("%v: %s", berr, b)
+			return
+		}
+		initBuildPath = out
+	})
+	if initBuildErr != nil {
+		t.Skipf("cannot build hull-init: %v", initBuildErr)
 	}
-	goBin, err := exec.LookPath("go")
-	if err != nil {
-		t.Skip("no Go toolchain to build hull-init with")
-	}
-	out := filepath.Join(t.TempDir(), "hull-init")
-	cmd := exec.Command(goBin, "build", "-o", out, "github.com/rahuldhali/hull/cmd/hull-init")
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
-	if b, err := cmd.CombinedOutput(); err != nil {
-		t.Skipf("cannot build hull-init: %v\n%s", err, b)
-	}
-	return out
+	return initBuildPath
 }
 
 // testRootfs copies the busybox fixture into a fresh temp directory. It is
@@ -764,12 +785,14 @@ func chownTree(t *testing.T, dir string, uid, gid int) {
 	}
 }
 
-// openParents makes every ancestor of dir traversable, because Go's t.TempDir
-// creates 0700 directories owned by the test user and the container is not
-// that user.
+// openParents makes dir and its ancestors *inside the test temp tree*
+// traversable, because Go's t.TempDir creates 0700 directories and the
+// container runs as a different uid. It stops at os.TempDir so it can never
+// touch a real system directory such as /tmp itself.
 func openParents(t *testing.T, dir string) {
 	t.Helper()
-	for p := dir; p != "/" && p != "."; p = filepath.Dir(p) {
+	stop := filepath.Clean(os.TempDir())
+	for p := filepath.Clean(dir); p != stop && p != "/" && p != "."; p = filepath.Dir(p) {
 		if err := os.Chmod(p, 0o755); err != nil {
 			t.Fatalf("chmod %s: %v", p, err)
 		}
