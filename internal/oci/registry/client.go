@@ -116,8 +116,9 @@ type Client struct {
 	rl         rateLimit
 
 	// Tunables, lowered by tests.
-	maxRetries  int
-	baseBackoff time.Duration
+	maxRetries    int
+	baseBackoff   time.Duration
+	pushChunkSize int64
 }
 
 // NewClient returns a Client configured by opts.
@@ -142,8 +143,9 @@ func NewClient(opts Options) *Client {
 		concurrency: opts.Concurrency,
 		progress:    opts.Progress,
 		challenges:  map[string]Challenge{},
-		maxRetries:  defaultMaxRetries,
-		baseBackoff: defaultBaseBackoff,
+		maxRetries:    defaultMaxRetries,
+		baseBackoff:   defaultBaseBackoff,
+		pushChunkSize: DefaultPushChunkSize,
 	}
 	if c.userAgent == "" {
 		c.userAgent = DefaultUserAgent

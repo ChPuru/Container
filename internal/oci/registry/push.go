@@ -108,7 +108,7 @@ func (c *Client) pushBlob(ctx context.Context, ref reference.Reference, store *c
 	}
 	c.emit(ProgressEvent{Digest: d.Digest, Status: StatusDownloading, Current: 0, Total: info.Size})
 
-	if info.Size > DefaultPushChunkSize {
+	if info.Size > c.pushChunkSize {
 		location, err = c.uploadChunks(ctx, ref, store, d.Digest, info.Size, location)
 		if err != nil {
 			return err
@@ -171,7 +171,7 @@ func uploadLocation(resp *http.Response) (string, error) {
 func (c *Client) uploadChunks(ctx context.Context, ref reference.Reference, store *content.Store, dgst string, size int64, location string) (string, error) {
 	var offset int64
 	for offset < size {
-		n := DefaultPushChunkSize
+		n := c.pushChunkSize
 		if remaining := size - offset; remaining < n {
 			n = remaining
 		}

@@ -157,7 +157,8 @@ func probeMountSetattr() bool {
 	if err != nil {
 		return false
 	}
-	_, _, errno := unix.RawSyscall6(sysMountSetattr, uintptr(int64(unix.AT_FDCWD)),
+	atfd := unix.AT_FDCWD
+	_, _, errno := unix.RawSyscall6(sysMountSetattr, uintptr(atfd),
 		uintptr(unsafe.Pointer(empty)), 0, 0, 0, 0)
 	return errno != unix.ENOSYS
 }

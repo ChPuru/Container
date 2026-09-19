@@ -106,9 +106,9 @@ func (f Features) kernelAtLeast(maj, min int) bool {
 	return f.KernelMinor >= min
 }
 
-// SeccompFunc builds a seccomp filter for a resolved capability set. It matches
-// the signature of internal/seccompprof.ForCapabilities so the daemon can wire
-// that package in without bundle depending on it.
+// SeccompFunc builds a seccomp filter for a resolved capability set. It is the
+// signature of internal/seccompprof.ForCapabilities, which is the default;
+// Options.SeccompProfile exists so a caller can substitute another provider.
 type SeccompFunc func(caps []string, privileged bool) *runtimespec.LinuxSeccomp
 
 // Options are the host-side facts bundle cannot derive from the container
@@ -151,8 +151,9 @@ type Options struct {
 	// container joins; it becomes /proc/<pid>/ns/net.
 	SharedNetworkPID int
 
-	// SeccompProfile builds the seccomp filter. When nil, DefaultSeccompProfile
-	// is used. Set it to seccompprof.ForCapabilities in the daemon.
+	// SeccompProfile builds the seccomp filter. When nil,
+	// seccompprof.ForCapabilities is used, which is what the daemon wants;
+	// the hook exists so a caller can pin a custom profile in a test.
 	SeccompProfile SeccompFunc
 
 	// Annotations are merged into the spec's annotations, after hull's own.

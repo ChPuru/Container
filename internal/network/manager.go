@@ -146,6 +146,11 @@ type Manager struct {
 	started   bool
 }
 
+// newLinkOpsFn is the constructor New uses for the kernel backend. It is a
+// variable so tests can substitute a recorder and exercise the whole Manager
+// without root, a bridge or a namespace.
+var newLinkOpsFn = newLinkOps
+
 // New builds a Manager rooted at hull's state directory (normally
 // /var/lib/hull). It opens the netlink socket and loads persisted networks but
 // touches no kernel state; call Init for that.
@@ -173,7 +178,7 @@ func New(root string, opts ManagerOptions) (*Manager, error) {
 		return nil, fmt.Errorf("%w: default pool %q: %w", ErrInvalidConfig, opts.DefaultPool, err)
 	}
 
-	links, err := newLinkOps()
+	links, err := newLinkOpsFn()
 	if err != nil {
 		return nil, err
 	}

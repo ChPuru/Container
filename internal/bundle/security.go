@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/rahuldhali/hull/internal/seccompprof"
 )
 
 // ---------- capabilities ----------
@@ -300,9 +301,12 @@ func (b *builder) buildSeccomp(caps []string, sec securityOptions) (*runtimespec
 	}
 	fn := b.opts.SeccompProfile
 	if fn == nil {
-		fn = DefaultSeccompProfile
+		fn = seccompprof.ForCapabilities
 	}
 	prof := fn(caps, b.privileged)
+	if prof == nil {
+		return nil, errors.New("bundle: the seccomp profile provider returned no filter for an unprivileged container; refusing to start it unconfined")
+	}
 	return prof, nil
 }
 

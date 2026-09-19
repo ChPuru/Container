@@ -238,7 +238,7 @@ type Firewall struct {
 	compat bool
 	runner CommandRunner
 
-	mu     sync.Mutex
+	mu      sync.Mutex
 	shimmed map[string]struct{}
 	nftPath string
 	iptPath string

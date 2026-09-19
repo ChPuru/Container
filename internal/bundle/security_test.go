@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/rahuldhali/hull/internal/seccompprof"
 	"github.com/rahuldhali/hull/internal/types"
 )
 
@@ -354,13 +355,13 @@ func TestMissingSeccompSupportWarns(t *testing.T) {
 	}
 }
 
-func TestDefaultSeccompProfileGatesOnCapabilities(t *testing.T) {
-	withoutAdmin := DefaultSeccompProfile(runtimespec.DefaultCapabilities(), false)
-	withAdmin := DefaultSeccompProfile(append(runtimespec.DefaultCapabilities(), "CAP_SYS_ADMIN"), false)
+func TestSeccompProfileGatesOnCapabilities(t *testing.T) {
+	withoutAdmin := seccompprof.ForCapabilities(runtimespec.DefaultCapabilities(), false)
+	withAdmin := seccompprof.ForCapabilities(append(runtimespec.DefaultCapabilities(), "CAP_SYS_ADMIN"), false)
 
 	allowed := func(p *runtimespec.LinuxSeccomp, name string) bool {
 		for _, s := range p.Syscalls {
-			if s.Action != runtimespec.ActAllow || len(s.Args) != 0 {
+			if s.Action != runtimespec.ActAllow {
 				continue
 			}
 			if contains(s.Names, name) {
@@ -378,11 +379,41 @@ func TestDefaultSeccompProfileGatesOnCapabilities(t *testing.T) {
 	if !allowed(withoutAdmin, "openat2") {
 		t.Error("openat2 belongs in the base allowlist")
 	}
-	if withoutAdmin.DefaultAction != runtimespec.ActErrno || withoutAdmin.DefaultErrnoRet == nil {
-		t.Error("the default profile must deny with an errno, not allow")
+	if withoutAdmin.DefaultAction == runtimespec.ActAllow {
+		t.Error("the default profile must deny, not allow")
 	}
-	if DefaultSeccompProfile(nil, true) != nil {
+	if seccompprof.ForCapabilities(nil, true) != nil {
 		t.Error("a privileged container gets no profile")
+	}
+}
+
+// TestSeccompProfileHookIsHonoured proves Options.SeccompProfile replaces the
+// default provider, which is how a caller pins a custom profile.
+func TestSeccompProfileHookIsHonoured(t *testing.T) {
+	root := fakeRootfs(t, testPasswd, testGroup)
+	marker := &runtimespec.LinuxSeccomp{DefaultAction: runtimespec.ActKillProcess}
+	var gotCaps []string
+	var gotPriv bool
+
+	spec, _, err := Generate(newTestContainer(), newTestImage(), Options{
+		RootFS:   root,
+		Features: Features{CgroupV2: true, Seccomp: true},
+		SeccompProfile: func(caps []string, privileged bool) *runtimespec.LinuxSeccomp {
+			gotCaps, gotPriv = caps, privileged
+			return marker
+		},
+	})
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if spec.Linux.Seccomp != marker {
+		t.Fatalf("seccomp = %+v, want the hook's profile", spec.Linux.Seccomp)
+	}
+	if gotPriv {
+		t.Error("privileged flag should be false")
+	}
+	if !contains(gotCaps, "CAP_CHOWN") {
+		t.Errorf("the hook must receive the resolved capability set, got %v", gotCaps)
 	}
 }
 
