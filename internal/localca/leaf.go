@@ -33,12 +33,12 @@ var (
 // for [LeafValidity] and are cached per *set* of names, so the order the names
 // are passed in does not matter and a cached leaf near expiry is re-minted.
 func (c *CA) LeafFor(names []string) (*tls.Certificate, error) {
+	if !anyNonEmpty(names) {
+		return nil, fmt.Errorf("localca: leaf: %w: no names given", ErrBadName)
+	}
 	dnsNames, ips, err := splitNames(names)
 	if err != nil {
 		return nil, err
-	}
-	if len(dnsNames) == 0 && len(ips) == 0 {
-		return nil, fmt.Errorf("localca: leaf: %w: no names given", ErrBadName)
 	}
 	key := cacheKey(dnsNames, ips)
 
@@ -131,6 +131,18 @@ func (c *CA) TLSConfig() *tls.Config {
 			return leaf, nil
 		},
 	}
+}
+
+// anyNonEmpty reports whether at least one name survives normalisation. The
+// loopback SANs are added unconditionally, so without this check a leaf for no
+// names at all would silently be a leaf for 127.0.0.1 only.
+func anyNonEmpty(names []string) bool {
+	for _, n := range names {
+		if normalizeName(n) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // splitNames normalises the requested names into sorted, de-duplicated DNS

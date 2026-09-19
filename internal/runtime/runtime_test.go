@@ -229,6 +229,11 @@ func TestMapCrunError(t *testing.T) {
 		{name: "not found", in: `container "abc" does not exist`, want: ErrNotFound},
 		{name: "not running", in: `container abc is not running`, want: ErrNotRunning},
 		{name: "already exists", in: `container abc already exists`, want: ErrExists},
+		{
+			name: "crun's missing status file",
+			in:   "error opening file `/var/lib/hull/runtime/abc/status`: No such file or directory",
+			want: ErrNotFound,
+		},
 		{name: "something else", in: `permission denied`},
 	}
 	for _, tc := range tests {

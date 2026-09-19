@@ -27,7 +27,7 @@ on older runc. The engine takes the lower of hull's version and the driver's max
 This matters beyond crun: runc, youki and gVisor all have their own floors, and a user with an
 older runtime on `PATH` would otherwise hit an unreadable error on their very first `hull run`.
 
-## 1b. `type: "cgroup"` is a request, not an instruction — OPEN
+## 1b. `type: "cgroup"` is a request, not an instruction — FIXED
 
 The native runtime reaches the in-container init stage and then dies:
 
@@ -66,8 +66,25 @@ So the rule is simple and has no host-dependent branch on this machine: **never 
 a read-only recursive bind of the host's `/sys/fs/cgroup` when it does not, or when the container
 runs in a user namespace.
 
-**Owner:** `internal/runtime`'s init stage. It is the last thing standing between the native
-runtime and a running container; the crun driver is unaffected because crun already does this.
+Fixed in `internal/runtime/initspec/cgroupmount_linux.go`: the init stage now resolves the
+request into candidates and takes the first that mounts.
+
+## 1c. Nobody was creating the default devices — FIXED
+
+With the cgroup mount working, the next failure was
+`open /dev/null to mask a file: no such file or directory`, which says nothing about the actual
+problem. `linux.devices` in the spec is the list of devices a caller wants *in addition to* a
+standard set, and `SetupDevices` was creating only what the bundle listed — so `/dev` was empty,
+and masking a path (which binds `/dev/null` over it) was the first thing to notice.
+
+Fixed in `internal/runtime/initspec/defaultdev_linux.go`: `/dev/{null,zero,full,random,urandom,tty}`
+are created before the caller's own devices, with an explicit entry always winning.
+`/dev/console` is deliberately not in the set — it comes from the pty, and fabricating it here
+would defeat the `fstat` check guarding the console symlink-swap CVEs.
+
+**Result:** hull's native runtime now runs containers with the same posture as the crun path —
+`pid=1`, `CapEff a80425fb`, `NoNewPrivs 1`, `Seccomp 2`, a real cgroup2 filesystem inside,
+`mount` refused by hull's own hand-compiled cBPF filter, and `/proc/kcore` masked to zero bytes.
 
 ## 2. `error obtaining VCS status: exit status 128` — FIXED
 

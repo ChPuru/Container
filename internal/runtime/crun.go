@@ -597,9 +597,16 @@ func mapCrunError(err error, id string) error {
 		return nil
 	}
 	msg := strings.ToLower(err.Error())
+	// crun does not have a single "not found" message: runc says
+	// `container "x" does not exist`, while crun reports the missing status
+	// file in its state directory. Both mean the same thing to hull.
+	missingState := strings.Contains(msg, "no such file or directory") &&
+		(strings.Contains(msg, "/status") || strings.Contains(msg, "/config.json"))
 	switch {
-	case strings.Contains(msg, "does not exist"),
+	case missingState,
+		strings.Contains(msg, "does not exist"),
 		strings.Contains(msg, "no such container"),
+		strings.Contains(msg, "container not found"),
 		strings.Contains(msg, "not exist"):
 		return fmt.Errorf("%s: %w", id, ErrNotFound)
 	case strings.Contains(msg, "is not running"),

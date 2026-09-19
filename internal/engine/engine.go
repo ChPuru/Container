@@ -132,6 +132,10 @@ type ctrState struct {
 	// lastCPU and lastBusy drive idle detection.
 	lastCPU  uint64
 	lastBusy time.Time
+	// lastSample is the most recent stats reading, used as the "pre" half of
+	// a one-shot stats call so a CPU percentage can be computed without
+	// sampling twice.
+	lastSample types.Stats
 	// frozen records that the idle watcher, rather than the user, froze it.
 	frozen bool
 }

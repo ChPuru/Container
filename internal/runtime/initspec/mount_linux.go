@@ -147,10 +147,25 @@ func SetupRootfs(cfg *Config) error {
 	}
 	defer unix.Close(rootFD)
 
+	userNS := inUserNamespace()
 	for i := range cfg.Mounts {
-		if err := mountOne(rootFD, &cfg.Mounts[i], cfg.Features); err != nil {
-			return fmt.Errorf("initspec: mount %s: %w", cfg.Mounts[i].Destination, err)
+		m := &cfg.Mounts[i]
+		// type:"cgroup" is a request, not an instruction: what actually gets mounted
+		// depends on the host's cgroup layout. See cgroupmount_linux.go.
+		var err error
+		if isCgroupMount(m) {
+			err = mountCgroup(rootFD, m, cfg.Features, userNS)
+		} else {
+			err = mountOne(rootFD, m, cfg.Features)
 		}
+		if err != nil {
+			return fmt.Errorf("initspec: mount %s: %w", m.Destination, err)
+		}
+	}
+	// The standard /dev nodes come first: masking a path binds /dev/null over it, so
+	// an empty /dev fails later in a way that says nothing about devices.
+	if err := SetupDefaultDevices(rootFD, cfg.Devices); err != nil {
+		return err
 	}
 	if err := SetupDevices(rootFD, cfg.Devices); err != nil {
 		return err

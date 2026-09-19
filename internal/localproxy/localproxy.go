@@ -67,6 +67,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rahuldhali/hull/internal/localca"
@@ -195,16 +196,14 @@ type Proxy struct {
 	routes map[string]*route // by name
 	index  map[string]*route // by hostname
 
-	started   sync.Once
-	startedOK bool
+	running atomic.Bool
 
 	readyOnce sync.Once
 	ready     chan struct{}
 
-	addrMu       sync.Mutex
-	boundHTTP    string
-	boundHTTPS   string
-	shuttingDown bool
+	addrMu     sync.Mutex
+	boundHTTP  string
+	boundHTTPS string
 }
 
 // New builds a Proxy from cfg, creating or loading the local CA when HTTPS is
