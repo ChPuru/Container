@@ -13,3 +13,5 @@
 /.scratch-evil/
 /.scratch-engine/
 /.scratch-net2/
+/.scratch-api/
+/.scratch-e2e.sh
