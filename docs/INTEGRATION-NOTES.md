@@ -53,6 +53,19 @@ what to actually mount from the host's cgroup mode:
   `EPERM` and always will be
 - **inside a user namespace** → always a read-only bind, never a fresh filesystem
 
+Probed directly on this host, so the fix is not guesswork:
+
+| Attempt (in a fresh mount namespace) | Result |
+|---|---|
+| `mount -t cgroup2 none <dir>` with a cgroup namespace | **works** — even here, on the hybrid host |
+| `mount -t cgroup none <dir>` (no controller named) | fails — `none already mounted on /dev` |
+| `mount --rbind /sys/fs/cgroup <dir>` then remount `ro` | **works** |
+
+So the rule is simple and has no host-dependent branch on this machine: **never issue
+`mount -t cgroup`.** Mount `cgroup2` when the container has a cgroup namespace, and fall back to
+a read-only recursive bind of the host's `/sys/fs/cgroup` when it does not, or when the container
+runs in a user namespace.
+
 **Owner:** `internal/runtime`'s init stage. It is the last thing standing between the native
 runtime and a running container; the crun driver is unaffected because crun already does this.
 
