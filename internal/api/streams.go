@@ -177,6 +177,23 @@ func (s *Server) postContainerAttach(w http.ResponseWriter, r *http.Request) err
 	}
 	defer func() { _ = conn.Close() }()
 
+	// `docker run` attaches while the container is still in "created" and only
+	// then calls start, so attaching to a created container has to mean "wait
+	// for it, then stream". Returning an empty stream instead leaves the client
+	// hanging on output that never arrives.
+	//
+	// The hijack has already happened, so a failure from here on can only be
+	// reported by closing the connection: there is no status line left to send.
+	if c.State == types.StateCreated {
+		started, werr := s.waitForStart(r.Context(), id)
+		if werr != nil {
+			s.log.Debug("hull: attach gave up waiting for the container to start",
+				"container", id, "err", werr)
+			return nil
+		}
+		c = started
+	}
+
 	cfg := engine.AttachConfig{
 		UseStdin:   useStdin,
 		UseStdout:  useStdout,
