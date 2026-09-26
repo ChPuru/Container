@@ -20,9 +20,9 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/content"
-	"github.com/rahuldhali/hull/internal/layer"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/content"
+	"github.com/ChPuru/hull/internal/layer"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // testFeatures pretends overlayfs is usable so the non-mount tests do not need

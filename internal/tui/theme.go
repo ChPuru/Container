@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/rahuldhali/hull/internal/types"
+import "github.com/ChPuru/hull/internal/types"
 
 // Theme is every style the dashboard draws with, in one place, so a
 // monochrome terminal is one substitution rather than a hundred conditionals.

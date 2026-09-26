@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/fsutil"
+	"github.com/ChPuru/hull/internal/fsutil"
 )
 
 // maxSeedDepth bounds the recursion of a seeding copy. An image is attacker-

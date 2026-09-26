@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // Sentinel errors returned by the registry client. Match them with errors.Is;

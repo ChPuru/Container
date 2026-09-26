@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // procUserHZ is the kernel's clock tick rate for the fields in

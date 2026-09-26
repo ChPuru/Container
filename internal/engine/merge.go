@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/bundle"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/bundle"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // HealthcheckNone is the Test[0] value that disables an image's healthcheck,

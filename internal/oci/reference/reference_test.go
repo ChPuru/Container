@@ -45,9 +45,9 @@ func TestParseValid(t *testing.T) {
 			canon: "docker.io/library/alpine:3.20", familiar: "alpine:3.20",
 		},
 		{
-			name: "hub user repo", in: "rahuldhali/hull:v1",
-			domain: "docker.io", path: "rahuldhali/hull", tag: "v1",
-			canon: "docker.io/rahuldhali/hull:v1", familiar: "rahuldhali/hull:v1",
+			name: "hub user repo", in: "chpuru/hull:v1",
+			domain: "docker.io", path: "chpuru/hull", tag: "v1",
+			canon: "docker.io/chpuru/hull:v1", familiar: "chpuru/hull:v1",
 		},
 		{
 			name: "ghcr", in: "ghcr.io/foo/bar:v1",

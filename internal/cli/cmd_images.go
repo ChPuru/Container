@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // newPullCommand builds "hull pull".
@@ -90,14 +90,14 @@ func newPushCommand() *Command {
 // imageRow is one row of "hull images", and the value a --format template
 // sees.
 type imageRow struct {
-	ID         string            `json:"ID"`
-	Repository string            `json:"Repository"`
-	Tag        string            `json:"Tag"`
-	Digest     string            `json:"Digest,omitempty"`
-	CreatedAt  string            `json:"CreatedAt"`
-	CreatedSince string          `json:"CreatedSince"`
-	Size       string            `json:"Size"`
-	Labels     map[string]string `json:"Labels,omitempty"`
+	ID           string            `json:"ID"`
+	Repository   string            `json:"Repository"`
+	Tag          string            `json:"Tag"`
+	Digest       string            `json:"Digest,omitempty"`
+	CreatedAt    string            `json:"CreatedAt"`
+	CreatedSince string            `json:"CreatedSince"`
+	Size         string            `json:"Size"`
+	Labels       map[string]string `json:"Labels,omitempty"`
 }
 
 // newImagesCommand builds "hull images".

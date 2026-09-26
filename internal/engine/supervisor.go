@@ -5,8 +5,8 @@ import (
 	"io"
 	"syscall"
 
-	"github.com/rahuldhali/hull/internal/shim"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/shim"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // Stream is one attached set of container standard streams.

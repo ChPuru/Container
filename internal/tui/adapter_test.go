@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/client"
-	"github.com/rahuldhali/hull/internal/logbuf"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/client"
+	"github.com/ChPuru/hull/internal/logbuf"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // newTestEngine starts an HTTP server speaking the Docker Engine API and

@@ -1,0 +1,45 @@
+# Captured 2026-09-26 on a Windows 11 laptop (i7-13650HX), WSL2 Ubuntu, kernel 5.15.167.4-microsoft-standard-WSL2, Go 1.26.8, run as root.
+# Command: go test -p 4 -count=1 -timeout 4m ./...   (with test/fixtures/make-rootfs.sh run first)
+
+?   	github.com/ChPuru/hull/cmd/hull	[no test files]
+ok  	github.com/ChPuru/hull/cmd/hull-init	1.225s
+?   	github.com/ChPuru/hull/cmd/hull-shim	[no test files]
+ok  	github.com/ChPuru/hull/cmd/hulld	0.852s
+ok  	github.com/ChPuru/hull/internal/api	0.238s
+ok  	github.com/ChPuru/hull/internal/bundle	0.026s
+ok  	github.com/ChPuru/hull/internal/capabilities	0.005s
+ok  	github.com/ChPuru/hull/internal/cgroups	0.030s
+ok  	github.com/ChPuru/hull/internal/cli	0.032s
+ok  	github.com/ChPuru/hull/internal/client	0.029s
+ok  	github.com/ChPuru/hull/internal/content	0.160s
+ok  	github.com/ChPuru/hull/internal/debugshell	0.033s
+ok  	github.com/ChPuru/hull/internal/engine	3.637s
+ok  	github.com/ChPuru/hull/internal/events	0.358s
+ok  	github.com/ChPuru/hull/internal/explain	0.004s
+ok  	github.com/ChPuru/hull/internal/foldersync	1.126s
+ok  	github.com/ChPuru/hull/internal/fsutil	0.564s
+ok  	github.com/ChPuru/hull/internal/hostinfo	1.292s
+ok  	github.com/ChPuru/hull/internal/idle	0.118s
+ok  	github.com/ChPuru/hull/internal/idutil	0.007s
+ok  	github.com/ChPuru/hull/internal/layer	0.036s
+ok  	github.com/ChPuru/hull/internal/localca	0.283s
+ok  	github.com/ChPuru/hull/internal/localproxy	0.096s
+ok  	github.com/ChPuru/hull/internal/lockfile	0.096s
+ok  	github.com/ChPuru/hull/internal/logbuf	0.424s
+ok  	github.com/ChPuru/hull/internal/network	1.837s
+ok  	github.com/ChPuru/hull/internal/oci/imagespec	0.005s
+ok  	github.com/ChPuru/hull/internal/oci/reference	0.005s
+ok  	github.com/ChPuru/hull/internal/oci/registry	0.819s
+ok  	github.com/ChPuru/hull/internal/oci/runtimespec	0.006s
+ok  	github.com/ChPuru/hull/internal/runtime	1.868s
+ok  	github.com/ChPuru/hull/internal/runtime/initspec	0.023s
+ok  	github.com/ChPuru/hull/internal/seccompprof	0.008s
+ok  	github.com/ChPuru/hull/internal/shim	4.629s
+ok  	github.com/ChPuru/hull/internal/snapshot	3.244s
+ok  	github.com/ChPuru/hull/internal/state	2.238s
+ok  	github.com/ChPuru/hull/internal/tui	0.350s
+?   	github.com/ChPuru/hull/internal/types	[no test files]
+?   	github.com/ChPuru/hull/internal/version	[no test files]
+ok  	github.com/ChPuru/hull/internal/volume	0.298s
+ok  	github.com/ChPuru/hull/internal/wslbridge	0.156s
+EXIT=0

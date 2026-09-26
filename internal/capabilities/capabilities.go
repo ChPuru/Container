@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 // Cap is a Linux capability, represented by its bit index in the capability

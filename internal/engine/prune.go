@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/content"
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/snapshot"
-	"github.com/rahuldhali/hull/internal/types"
-	"github.com/rahuldhali/hull/internal/volume"
+	"github.com/ChPuru/hull/internal/content"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/snapshot"
+	"github.com/ChPuru/hull/internal/types"
+	"github.com/ChPuru/hull/internal/volume"
 )
 
 // maxManifestBlob bounds what the garbage collector is willing to parse while

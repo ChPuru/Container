@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/shim"
-	"github.com/rahuldhali/hull/internal/state"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/shim"
+	"github.com/ChPuru/hull/internal/state"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // restart closes the engine's state store and opens a fresh engine over the

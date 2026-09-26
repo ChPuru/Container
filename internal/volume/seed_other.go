@@ -5,7 +5,7 @@ package volume
 import (
 	"fmt"
 
-	"github.com/rahuldhali/hull/internal/fsutil"
+	"github.com/ChPuru/hull/internal/fsutil"
 )
 
 // copyImageContent is Linux-only: seeding a volume from image content needs

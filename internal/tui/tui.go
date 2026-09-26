@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/client"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/client"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // ErrNotTerminal is returned by [Run] when standard input or standard output

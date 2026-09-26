@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // Env is everything a command needs that is not its own arguments: the three

@@ -54,9 +54,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/explain"
-	"github.com/rahuldhali/hull/internal/hostinfo"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/explain"
+	"github.com/ChPuru/hull/internal/hostinfo"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // Errors a caller is expected to test for.

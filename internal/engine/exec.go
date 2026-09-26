@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/bundle"
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/idutil"
-	"github.com/rahuldhali/hull/internal/shim"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/bundle"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/idutil"
+	"github.com/ChPuru/hull/internal/shim"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // execRecord is one created exec, alive from Exec until the daemon forgets the

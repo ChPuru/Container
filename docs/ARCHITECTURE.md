@@ -1,6 +1,6 @@
 # hull — architecture
 
-`hull` is a personal container engine for Windows 11 + WSL2, built to replace Docker
+`hull` is a container engine for Windows 11 + WSL2, built to replace Docker
 Desktop as a daily driver. It speaks the Docker Engine API so the stock `docker` CLI,
 `docker compose`, VS Code Dev Containers and Testcontainers work against it unchanged,
 and it also ships its own `hull` CLI and TUI.
@@ -199,7 +199,7 @@ unpublish     0 sockets left on :18099
 
 The server was busybox httpd running inside the container's own network namespace, reached from
 the host through hull's userland proxy. The MAC is random rather than derived from the IP, which
-is the bocker bug the research flagged.
+is the bug bocker has.
 
 ### Validated on this host (2026-09-19)
 
@@ -248,7 +248,7 @@ before the engine was written, so the design is not resting on assumptions:
   platform entries, from which the linux/amd64 manifest, its 612-byte config and its single
   3.6 MB gzip layer resolve cleanly. The client must dispatch on `Content-Type`, not on what it
   asked for in `Accept`.
-  **Rate limit, resolved:** the research recorded a conflict between Docker's docs (100 pulls per
+  **Rate limit, resolved:** there is a conflict between Docker's docs (100 pulls per
   6 hours) and an observed header. The live header on this host is `ratelimit-limit: 100;w=3600`
   — **100 per hour**, not per 6 hours. Read the header; do not hard-code the documented number.
 - **Windows transport** — a long-lived `wsl.exe -d Ubuntu -u root --exec /bin/cat` child carried

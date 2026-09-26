@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/state"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/state"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 func TestCreateBuildsEverythingAndPersists(t *testing.T) {

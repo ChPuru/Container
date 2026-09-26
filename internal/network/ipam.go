@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/rahuldhali/hull/internal/fsutil"
+	"github.com/ChPuru/hull/internal/fsutil"
 )
 
 // maxPoolAddresses caps the size of a single allocation bitmap. A /12 is

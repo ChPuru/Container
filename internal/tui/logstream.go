@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/client"
-	"github.com/rahuldhali/hull/internal/logbuf"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/client"
+	"github.com/ChPuru/hull/internal/logbuf"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // maxPendingLine bounds how much of an unterminated line the splitter will

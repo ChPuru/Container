@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/content"
-	"github.com/rahuldhali/hull/internal/oci/imagespec"
-	"github.com/rahuldhali/hull/internal/oci/reference"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/content"
+	"github.com/ChPuru/hull/internal/oci/imagespec"
+	"github.com/ChPuru/hull/internal/oci/reference"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // seedStore writes every blob of a fixture into a content store, which is the

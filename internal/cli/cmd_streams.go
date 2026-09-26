@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/client"
-	"github.com/rahuldhali/hull/internal/logbuf"
+	"github.com/ChPuru/hull/internal/client"
+	"github.com/ChPuru/hull/internal/logbuf"
 )
 
 // interruptible returns a context that is cancelled on the first Ctrl-C, so a

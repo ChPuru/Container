@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"sort"
@@ -8,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/engine"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/engine"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // containerListFilters are the ?filters= keys GET /containers/json accepts.
@@ -419,21 +420,32 @@ func (s *Server) postContainerWait(w http.ResponseWriter, r *http.Request) error
 		return errBadParameter("invalid condition %q: expected %s, %s or %s",
 			condition, engine.WaitNotRunning, engine.WaitNextExit, engine.WaitRemoved)
 	}
-	code, err := s.backend.Wait(r.Context(), id, condition)
-	if err != nil {
+	// Resolve the container first, so a missing one is still a real 404.
+	if _, err := s.backend.Inspect(r.Context(), id); err != nil {
 		if errors.Is(err, engine.ErrNotFound) {
 			return errNoSuchContainer(id)
 		}
-		// The headers have not gone out yet, so a real HTTP error is still
-		// possible; Docker nonetheless prefers the in-body Error field here
-		// because a client's decoder is already waiting for this shape.
-		writeJSON(w, http.StatusOK, ContainerWaitResponse{
-			StatusCode: code,
-			Error:      &ContainerWaitError{Message: errorMessage(err)},
-		})
-		return nil
+		return containerError(err, id)
 	}
-	writeJSON(w, http.StatusOK, ContainerWaitResponse{StatusCode: code})
+
+	// Send the status line now, before blocking. `docker run` issues this
+	// request before it starts the container and does not call start until the
+	// response headers arrive, so holding them until the container exits is a
+	// deadlock: the container stays in "created" forever. Moby flushes the
+	// headers immediately for the same reason; the result follows in the body.
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = http.NewResponseController(w).Flush()
+
+	resp := ContainerWaitResponse{}
+	code, err := s.backend.Wait(r.Context(), id, condition)
+	resp.StatusCode = code
+	if err != nil && !(errors.Is(err, engine.ErrNotFound) && condition == engine.WaitRemoved) {
+		// The headers are gone, so the error travels in the body, which is
+		// where Docker's clients look for it anyway.
+		resp.Error = &ContainerWaitError{Message: errorMessage(err)}
+	}
+	_ = json.NewEncoder(w).Encode(resp)
 	return nil
 }
 

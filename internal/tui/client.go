@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // Client is the engine-facing surface the dashboard consumes.

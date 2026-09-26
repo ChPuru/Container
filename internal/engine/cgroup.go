@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rahuldhali/hull/internal/cgroups"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/cgroups"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // cgroupFor opens the container's cgroup without creating it.

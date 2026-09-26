@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/engine"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/engine"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // This file is the translation layer between hull's domain model and Docker's

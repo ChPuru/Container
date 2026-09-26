@@ -28,9 +28,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
-	"github.com/rahuldhali/hull/internal/runtime"
-	"github.com/rahuldhali/hull/internal/runtime/initspec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/runtime"
+	"github.com/ChPuru/hull/internal/runtime/initspec"
 )
 
 // ---------- harness ----------
@@ -70,7 +70,7 @@ func hullInit(t *testing.T) string {
 			return
 		}
 		out := filepath.Join(dir, "hull-init")
-		cmd := exec.Command(goBin, "build", "-o", out, "github.com/rahuldhali/hull/cmd/hull-init")
+		cmd := exec.Command(goBin, "build", "-o", out, "github.com/ChPuru/hull/cmd/hull-init")
 		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		if b, berr := cmd.CombinedOutput(); berr != nil {
 			initErr = fmt.Errorf("%v: %s", berr, b)

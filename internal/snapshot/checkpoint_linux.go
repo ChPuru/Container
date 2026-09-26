@@ -16,8 +16,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/fsutil"
-	"github.com/rahuldhali/hull/internal/layer"
+	"github.com/ChPuru/hull/internal/fsutil"
+	"github.com/ChPuru/hull/internal/layer"
 )
 
 // checkpointMeta is the on-disk form of a Checkpoint.

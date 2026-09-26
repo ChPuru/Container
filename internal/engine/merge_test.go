@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 func TestMergeImageConfig(t *testing.T) {

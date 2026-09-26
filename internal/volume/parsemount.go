@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // ParseMount parses one long-form --mount specification and returns the

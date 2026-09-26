@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/logbuf"
+	"github.com/ChPuru/hull/internal/logbuf"
 )
 
 // rawStreamMediaType is the content type the engine answers a hijack with.

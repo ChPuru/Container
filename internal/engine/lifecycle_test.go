@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/logbuf"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/logbuf"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // collectEvents subscribes to the bus and returns a function that drains what

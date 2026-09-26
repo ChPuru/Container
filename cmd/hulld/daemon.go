@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/api"
-	"github.com/rahuldhali/hull/internal/engine"
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/api"
+	"github.com/ChPuru/hull/internal/engine"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // daemon is one hulld process: an engine, an API server and the listeners it

@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
-	"github.com/rahuldhali/hull/internal/runtime/initspec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/runtime/initspec"
 )
 
 // Exec runs an extra process inside a running container.

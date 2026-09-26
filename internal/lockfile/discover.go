@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/oci/reference"
+	"github.com/ChPuru/hull/internal/oci/reference"
 )
 
 // discoverMaxDepth is how far below the project root Discover walks. Four

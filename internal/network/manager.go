@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/explain"
-	"github.com/rahuldhali/hull/internal/fsutil"
-	"github.com/rahuldhali/hull/internal/idutil"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/explain"
+	"github.com/ChPuru/hull/internal/fsutil"
+	"github.com/ChPuru/hull/internal/idutil"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // defaultMTU is used only when the host's uplink MTU cannot be read.

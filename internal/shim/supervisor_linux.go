@@ -16,8 +16,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/logbuf"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/logbuf"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // consoleTimeout bounds how long the shim waits for the runtime to hand over

@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/explain"
+	"github.com/ChPuru/hull/internal/explain"
 )
 
 func TestNamespaceFlags(t *testing.T) {

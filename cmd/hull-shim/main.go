@@ -16,7 +16,7 @@ package main
 import (
 	"os"
 
-	"github.com/rahuldhali/hull/internal/shim"
+	"github.com/ChPuru/hull/internal/shim"
 )
 
 func main() {

@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"sync"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // proxySignals forwards the signals this process receives to a container,

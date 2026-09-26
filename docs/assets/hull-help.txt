@@ -1,0 +1,71 @@
+# hull --help (Windows build, go build ./cmd/hull)
+
+Usage:  hull [OPTIONS] COMMAND [ARG...]
+
+hull is a container engine for Windows 11 and WSL2.
+
+It speaks the Docker Engine API, so the stock docker CLI, docker compose,
+Dev Containers and Testcontainers work against it unchanged. Run
+'hull docker-compat' for the exact DOCKER_HOST value to use on this machine.
+
+Commands:
+  attach          Attach local standard input, output and error streams to a running container
+  branch          Start a new container from a checkpoint
+  build           Build an image from a Dockerfile
+  commit          Create a new image from a container's changes
+  cp              Copy files or folders between a container and the local filesystem
+  create          Create a new container without starting it
+  debug           Attach a busybox toolbox to a distroless container's namespaces
+  diff            Inspect changes to files or directories on a container's filesystem
+  docker-compat   How to point docker, compose and Testcontainers at hull
+  doctor          Report what this machine supports, and the fix for what it does not
+  engine          Control the hull engine
+  events          Get real-time events from the engine
+  exec            Execute a command in a running container
+  export          Export a container's filesystem as a tar archive
+  history         Show the history of an image
+  image           Manage images
+  images          List images
+  info            Display system-wide information
+  inspect         Return low-level information on hull objects
+  kill            Kill one or more running containers
+  load            Load an image from a tar archive or STDIN
+  lock            Write hull.lock, pinning every image to a digest
+  login           Log in to a registry
+  logout          Log out from a registry
+  logs            Fetch the logs of a container
+  network         Manage networks
+  pause           Pause all processes within one or more containers
+  port            List port mappings, or a specific mapping, for the container
+  prune           Remove unused containers, images, networks and optionally volumes
+  ps              List containers
+  pull            Download an image from a registry
+  push            Upload an image to a registry
+  rename          Rename a container
+  restart         Restart one or more containers
+  revert          Roll a container's writable layer back to a checkpoint
+  rm              Remove one or more containers
+  rmi             Remove one or more images
+  run             Create and run a new container from an image
+  save            Save one or more images to a tar archive
+  snapshot        Checkpoint a running container's writable layer
+  start           Start one or more stopped containers
+  stats           Display a live stream of container resource usage statistics
+  stop            Stop one or more running containers
+  sync            Two-way sync a host folder into a volume, with real inotify
+  tag             Create a tag that refers to a source image
+  top             Display the running processes of a container
+  ui              Open the terminal dashboard: containers, logs, stats and events
+  unpause         Unpause all processes within one or more containers
+  update          Update configuration of one or more containers
+  version         Show hull and engine version information
+  volume          Manage volumes
+  wait            Block until one or more containers stop, then print their exit codes
+
+Options:
+  -D, --debug              Shorthand for --log-level debug
+  -H, --host string        Engine address (unix://, npipe://, tcp:// or wsl://)
+  -l, --log-level string   Logging level ("debug", "info", "warn", "error") (default info)
+  -v, --version            Print the version and exit
+
+Run 'hull COMMAND --help' for more information on a command.

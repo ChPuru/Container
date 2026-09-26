@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/rahuldhali/hull/internal/client"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/client"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // DefaultShellCommand is what the "e" key runs inside a container: bash when

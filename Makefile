@@ -5,7 +5,7 @@ GO        ?= go
 VERSION   ?= 0.1.0-dev
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE      ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
-PKG       := github.com/rahuldhali/hull/internal/version
+PKG       := github.com/ChPuru/hull/internal/version
 LDFLAGS   := -X $(PKG).Version=$(VERSION) -X $(PKG).Commit=$(COMMIT) -X $(PKG).BuildDate=$(DATE)
 BIN       := bin
 
@@ -46,9 +46,9 @@ tidy:
 test:
 	$(GO) test ./...
 
-# Integration tests need root and real namespaces, so they are gated behind a tag.
+# The CVE-regression suite needs root and real namespaces, so it is gated behind a tag.
 e2e:
-	$(GO) test -tags e2e -count=1 -v ./test/...
+	$(GO) test -tags cve -count=1 -v ./test/cve/...
 
 distro:
 	./scripts/build-distro.sh

@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/version"
+	"github.com/ChPuru/hull/internal/version"
 )
 
 // placeholderHost is the authority hull puts in request URLs for transports

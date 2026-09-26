@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/lockfile"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/lockfile"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // ExampleLockfile_Save shows what hull.lock looks like in a pull request: a

@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // writeTempFile writes content to a file in t.TempDir and returns its path.

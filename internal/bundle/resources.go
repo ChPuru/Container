@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/explain"
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/explain"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 // DefaultCPUPeriod is the cpu.max period hull uses when a quota is requested

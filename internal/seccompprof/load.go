@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/capabilities"
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/capabilities"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 // dockerProfile is the on-disk JSON shape Docker uses for seccomp profiles.

@@ -51,8 +51,8 @@ type flagDef struct {
 
 // FlagSet holds one command's flags and the operands left after parsing.
 type FlagSet struct {
-	name  string
-	defs  []*flagDef
+	name    string
+	defs    []*flagDef
 	byLong  map[string]*flagDef
 	byShort map[string]*flagDef
 	args    []string
@@ -305,7 +305,7 @@ func (f *FlagSet) Duration(name, short string, def time.Duration, usage string) 
 
 // stringSliceValue accumulates repeated occurrences of one flag.
 type stringSliceValue struct {
-	values  *[]string
+	values   *[]string
 	replaced bool
 }
 

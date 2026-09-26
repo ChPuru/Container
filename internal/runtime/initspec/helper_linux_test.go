@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 // helperEnv names the environment variable that turns the test binary into a

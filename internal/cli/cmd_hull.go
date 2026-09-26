@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/client"
-	"github.com/rahuldhali/hull/internal/hostinfo"
+	"github.com/ChPuru/hull/internal/client"
+	"github.com/ChPuru/hull/internal/hostinfo"
 )
 
 // newDoctorCommand builds "hull doctor": what this machine supports, and the

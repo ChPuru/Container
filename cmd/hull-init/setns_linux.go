@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/runtime/initspec"
+	"github.com/ChPuru/hull/internal/runtime/initspec"
 )
 
 // setnsOrder is the order namespaces are joined in. The user namespace has to

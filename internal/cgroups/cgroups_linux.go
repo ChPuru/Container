@@ -16,7 +16,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // sysClone3 is the clone3(2) syscall number. It is 435 on every Linux

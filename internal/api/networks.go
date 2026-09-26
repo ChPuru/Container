@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/engine"
-	"github.com/rahuldhali/hull/internal/network"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/engine"
+	"github.com/ChPuru/hull/internal/network"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // networkListFilters are the ?filters= keys GET /networks accepts.

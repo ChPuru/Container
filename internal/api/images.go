@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/engine"
-	"github.com/rahuldhali/hull/internal/oci/registry"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/engine"
+	"github.com/ChPuru/hull/internal/oci/registry"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // imageListFilters are the ?filters= keys GET /images/json accepts.

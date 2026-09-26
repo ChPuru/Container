@@ -36,8 +36,8 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/rahuldhali/hull/internal/engine"
-	"github.com/rahuldhali/hull/internal/version"
+	"github.com/ChPuru/hull/internal/engine"
+	"github.com/ChPuru/hull/internal/version"
 )
 
 // Process exit codes. Anything non-zero means the daemon did not start, or did

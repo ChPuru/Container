@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 // Confine applies everything that turns the calling process into the confined

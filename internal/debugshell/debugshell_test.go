@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/explain"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/explain"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 func TestNormalizeDefaults(t *testing.T) {

@@ -6,7 +6,7 @@
 // time the container is recreated. The proxy listens once on :80 and :443,
 // matches the Host header against its route table, and reverse-proxies to the
 // container's published address. TLS is served from a local root managed by
-// [github.com/rahuldhali/hull/internal/localca].
+// [github.com/ChPuru/hull/internal/localca].
 //
 // The routing rules, in order:
 //
@@ -70,7 +70,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/localca"
+	"github.com/ChPuru/hull/internal/localca"
 )
 
 // Defaults applied by [New] when a [Config] field is left zero.

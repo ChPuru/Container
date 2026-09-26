@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // DetailTab selects what the detail pane shows for the selected container.

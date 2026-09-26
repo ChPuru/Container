@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // fakeLink is one interface in the fake kernel.

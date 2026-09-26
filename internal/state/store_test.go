@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // quietLogger discards store warnings so a test that deliberately corrupts a

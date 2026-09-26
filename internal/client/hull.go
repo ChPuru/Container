@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/hostinfo"
+	"github.com/ChPuru/hull/internal/hostinfo"
 )
 
 // The hull-only endpoints live under /hull/v1 rather than inside the Docker

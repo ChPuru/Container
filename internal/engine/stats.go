@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/cgroups"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/cgroups"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // StatsInterval is how often a streaming Stats call samples, matching Docker.

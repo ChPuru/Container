@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/client"
-	"github.com/rahuldhali/hull/internal/version"
+	"github.com/ChPuru/hull/internal/client"
+	"github.com/ChPuru/hull/internal/version"
 )
 
 // Global holds the options hull accepts before the subcommand name. They are
@@ -409,9 +409,9 @@ func writeInfo(env *Env, info client.Info) {
 // environment a Docker-speaking tool needs on this machine.
 func newDockerCompatCommand() *Command {
 	return &Command{
-		Name:    "docker-compat",
-		Usage:   "docker-compat",
-		Short:   "How to point docker, compose and Testcontainers at hull",
+		Name:  "docker-compat",
+		Usage: "docker-compat",
+		Short: "How to point docker, compose and Testcontainers at hull",
 		Long: "Print the DOCKER_HOST setting that makes the stock Docker tooling\n" +
 			"talk to hull: the docker CLI, docker compose, VS Code Dev Containers\n" +
 			"and Testcontainers all work unchanged against hull's Engine API.",

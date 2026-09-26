@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/volume"
+	"github.com/ChPuru/hull/internal/volume"
 )
 
 // ParseSize converts a human byte size such as "64m", "1.5g" or "1048576"

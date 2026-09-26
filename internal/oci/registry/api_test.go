@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/oci/imagespec"
+	"github.com/ChPuru/hull/internal/oci/imagespec"
 )
 
 func TestPing(t *testing.T) {

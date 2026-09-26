@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/content"
-	"github.com/rahuldhali/hull/internal/oci/imagespec"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/content"
+	"github.com/ChPuru/hull/internal/oci/imagespec"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 func newStore(t *testing.T) *content.Store {

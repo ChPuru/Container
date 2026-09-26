@@ -18,7 +18,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/cli"
+	"github.com/ChPuru/hull/internal/cli"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 func ev(typ, action, id string, attrs map[string]string) types.Event {

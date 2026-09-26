@@ -1,8 +1,8 @@
 package runtime
 
 import (
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // resourcesFromSpec projects the runtime-spec resource block onto the cgroup

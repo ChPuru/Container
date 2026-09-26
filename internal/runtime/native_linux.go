@@ -16,9 +16,9 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/cgroups"
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
-	"github.com/rahuldhali/hull/internal/runtime/initspec"
+	"github.com/ChPuru/hull/internal/cgroups"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/runtime/initspec"
 )
 
 // NativeName is the value HostConfig.Runtime takes to select hull's own

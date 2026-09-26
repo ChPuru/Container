@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // objectKinds are the object kinds "hull inspect" can resolve, in the order it

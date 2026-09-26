@@ -18,7 +18,7 @@ package seccompprof
 import (
 	"runtime"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 // Errno values returned by the default profile. EPERM is the default for

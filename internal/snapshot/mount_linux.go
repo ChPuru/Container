@@ -14,8 +14,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/explain"
-	"github.com/rahuldhali/hull/internal/fsutil"
+	"github.com/ChPuru/hull/internal/explain"
+	"github.com/ChPuru/hull/internal/fsutil"
 )
 
 // mountsVersion is the schema version of mounts.json.

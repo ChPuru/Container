@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/fsutil"
-	"github.com/rahuldhali/hull/internal/idutil"
-	"github.com/rahuldhali/hull/internal/state"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/fsutil"
+	"github.com/ChPuru/hull/internal/idutil"
+	"github.com/ChPuru/hull/internal/state"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 const (

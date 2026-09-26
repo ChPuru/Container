@@ -3,7 +3,7 @@ package imagespec
 import (
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // SchemaVersion is the only schemaVersion value OCI and Docker schema 2 use.

@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 // capLastCapPath is the kernel's own statement of the highest capability bit

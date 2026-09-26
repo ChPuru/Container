@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // tmpfsNoOpFlags are tmpfs mount flags hull already applies to every container

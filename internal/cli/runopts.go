@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // runOptions is the whole of "hull run"'s flag surface, shared with

@@ -52,7 +52,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // Frame kinds. The kind is the first byte of every frame.

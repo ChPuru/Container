@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/oci/imagespec"
+	"github.com/ChPuru/hull/internal/oci/imagespec"
 )
 
 func TestNormalizeAuthKey(t *testing.T) {

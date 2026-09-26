@@ -7,7 +7,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // This file exists so cross-platform code - the hull CLI, which also builds

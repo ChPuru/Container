@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 	"golang.org/x/sys/unix"
 )
 

@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/content"
-	"github.com/rahuldhali/hull/internal/oci/reference"
+	"github.com/ChPuru/hull/internal/content"
+	"github.com/ChPuru/hull/internal/oci/reference"
 )
 
 // defaultPageSize is the page size hull asks for when listing tags or

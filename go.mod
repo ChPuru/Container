@@ -1,4 +1,4 @@
-module github.com/rahuldhali/hull
+module github.com/ChPuru/hull
 
 go 1.26.0
 

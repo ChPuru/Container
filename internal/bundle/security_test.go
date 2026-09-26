@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
-	"github.com/rahuldhali/hull/internal/seccompprof"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/seccompprof"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 func TestNormalizeCapability(t *testing.T) {

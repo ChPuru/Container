@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/fsutil"
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/fsutil"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // ---------- entrypoint / cmd ----------

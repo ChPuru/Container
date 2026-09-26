@@ -17,7 +17,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 func TestCloneFlagsFor(t *testing.T) {
@@ -280,7 +280,7 @@ func hullInitBinary(t *testing.T) string {
 			return
 		}
 		out := filepath.Join(dir, "hull-init")
-		cmd := exec.Command(goBin, "build", "-o", out, "github.com/rahuldhali/hull/cmd/hull-init")
+		cmd := exec.Command(goBin, "build", "-o", out, "github.com/ChPuru/hull/cmd/hull-init")
 		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		if b, berr := cmd.CombinedOutput(); berr != nil {
 			initBuildErr = fmt.Errorf("%v: %s", berr, b)

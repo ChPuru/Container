@@ -6,8 +6,8 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/rahuldhali/hull/internal/cli"
-	"github.com/rahuldhali/hull/internal/wslbridge"
+	"github.com/ChPuru/hull/internal/cli"
+	"github.com/ChPuru/hull/internal/wslbridge"
 )
 
 // runHidden dispatches one of the plumbing subcommands and returns the process

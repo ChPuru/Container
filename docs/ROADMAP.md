@@ -1,8 +1,5 @@
 # hull roadmap
 
-Derived from the 2026-09-13 research sweep's 58-item feature inventory, ordered so that each
-milestone is independently useful rather than a step toward a distant payoff.
-
 Effort: **S** ≈ a day, **M** ≈ a few days, **L** ≈ a week or two, **XL** ≈ longer.
 
 ---

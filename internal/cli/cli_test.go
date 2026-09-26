@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // TestFlagSetParseTable exercises every spelling the CLI promises to accept:

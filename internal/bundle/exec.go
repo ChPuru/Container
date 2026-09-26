@@ -6,8 +6,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // ExecOptions are the per-exec overrides of `docker exec`. Everything left zero

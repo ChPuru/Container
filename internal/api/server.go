@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/engine"
-	"github.com/rahuldhali/hull/internal/version"
+	"github.com/ChPuru/hull/internal/engine"
+	"github.com/ChPuru/hull/internal/version"
 )
 
 // Options configures a [Server]. The zero value is usable: every field falls

@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rahuldhali/hull/internal/fsutil"
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/fsutil"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 // ConfigName is the file name the OCI runtime-spec mandates inside a bundle.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 func amd64Target(t *testing.T) ArchTarget {

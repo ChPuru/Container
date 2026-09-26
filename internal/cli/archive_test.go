@@ -29,7 +29,7 @@ func TestTarRoundTrip(t *testing.T) {
 		t.Fatalf("untarTo: %v", err)
 	}
 	for path, want := range map[string]string{
-		filepath.Join(dst, "payload", "top.txt"):                  "top",
+		filepath.Join(dst, "payload", "top.txt"):                 "top",
 		filepath.Join(dst, "payload", "sub", "deep", "leaf.txt"): "leaf",
 	} {
 		got, err := os.ReadFile(path)

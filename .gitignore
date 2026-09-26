@@ -1,18 +1,44 @@
+# Build outputs
 /bin/
 /dist/
 *.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.*
+*.prof
+
+# Downloaded rootfs tarballs and archives
 *.tar
 *.tgz
+*.tar.gz
+
+# Test scratch and fixtures generated at runtime
 /test/tmp/
-/.scratch-doctor/
-/.scratch-pull/
-/.scratch-chain/
-/.scratch-net/
-/.scratch-run/
-/.scratch-port/
-/.scratch-evil/
-/.scratch-engine/
-/.scratch-net2/
-/.scratch-api/
-/.scratch-e2e.sh
-/.scratch-verify.sh
+/test/fixtures/rootfs/
+
+# Local scratch
+/.scratch*
+/.tmp*
+*.log
+
+# Secrets and local environment
+.env
+.env.*
+*.pem
+*.key
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Local assistant/personal notes
+.remember/
+.claude/
+CLAUDE.md

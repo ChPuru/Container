@@ -16,7 +16,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 // Stage names select which half of hull-init runs. The stage arrives as the

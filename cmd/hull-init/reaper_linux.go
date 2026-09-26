@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/runtime/initspec"
+	"github.com/ChPuru/hull/internal/runtime/initspec"
 )
 
 // runPID1 is hull-init's default mode: a real, minimal init for a container

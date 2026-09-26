@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // dialTimeout bounds a single connection attempt to the shim socket.

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // progressRedraw throttles the terminal repaint. A pull emits a message per

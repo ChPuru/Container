@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/network"
-	"github.com/rahuldhali/hull/internal/shim"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/network"
+	"github.com/ChPuru/hull/internal/shim"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // hardKillGrace bounds how long Stop waits after SIGKILL before giving up and

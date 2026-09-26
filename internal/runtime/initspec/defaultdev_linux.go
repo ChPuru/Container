@@ -5,7 +5,7 @@ package initspec
 import (
 	"fmt"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 // The runtime spec's linux.devices list holds the devices a caller asked for *in

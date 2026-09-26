@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/network"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/network"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // NetworkCreate defines a new bridge network.

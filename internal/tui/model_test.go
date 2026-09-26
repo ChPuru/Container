@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // testClock is a fixed instant so uptimes and toasts are reproducible.

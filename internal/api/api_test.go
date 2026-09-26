@@ -20,10 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/engine"
-	"github.com/rahuldhali/hull/internal/logbuf"
-	"github.com/rahuldhali/hull/internal/oci/registry"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/engine"
+	"github.com/ChPuru/hull/internal/logbuf"
+	"github.com/ChPuru/hull/internal/oci/registry"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // newTestServer builds a server over a fresh fake backend.

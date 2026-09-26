@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // recv reads one event or fails the test after a generous timeout.

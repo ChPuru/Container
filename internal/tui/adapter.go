@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/client"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/client"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // EngineClient adapts hull's HTTP client to the narrow [Client] the dashboard

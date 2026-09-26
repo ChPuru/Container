@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // indexVersion is stamped into the on-disk index files so a future hull can

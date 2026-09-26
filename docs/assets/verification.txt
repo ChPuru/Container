@@ -1,0 +1,75 @@
+# Captured 2026-09-26 on a Windows 11 laptop (i7-13650HX), WSL2 Ubuntu, kernel 5.15.167.4-microsoft-standard-WSL2, Go 1.26.8, run as root.
+# hulld started with a throwaway data root; hull CLI and the stock docker 28.4.0 CLI both pointed at its socket.
+
+daemon up
+$ hull version
+hull version 0.1.0-dev, build 96ca607
+ API version:  1.43 (minimum 1.24)
+ Go version:   go1.26.8
+ Built:        2026-09-26T14:09:33Z
+ OS/Arch:      linux/amd64
+
+Engine:
+ Version:      28.4.0
+ API version:  1.43 (minimum 1.24)
+ OS/Arch:      linux/amd64
+ Kernel:       5.15.167.4-microsoft-standard-WSL2
+ Engine:       0.1.0-dev
+ Runtime:      hull-native
+
+$ time hull run --rm alpine:3.20 echo hello from hull
+hello from hull
+
+real	0m4.286s
+user	0m0.005s
+sys	0m0.000s
+
+$ time hull run --rm alpine:3.20 echo warm start
+warm start
+
+real	0m0.484s
+user	0m0.001s
+sys	0m0.005s
+
+$ hull images
+REPOSITORY   TAG    IMAGE ID       CREATED        SIZE
+alpine       3.20   bf8527eb54c3   5 months ago   3.63MB
+
+$ docker version --format ...
+client 28.4.0 -> server 28.4.0 (API 1.43)
+
+$ time docker run --rm alpine:3.20 uname -a
+Linux 60cb4d6f2c87 5.15.167.4-microsoft-standard-WSL2 #1 SMP Tue Nov 5 00:21:55 UTC 2024 x86_64 Linux
+
+real	0m2.294s
+user	0m0.001s
+sys	0m0.051s
+
+== verification checks ==
+== hull CLI ==
+  pass  hull version
+  pass  hull run
+  pass  hull ps -a
+== docker CLI ==
+  pass  docker version
+  pass  docker run attached
+  pass  docker inspect slash
+  pass  docker exec
+  pass  docker logs
+  FAIL  404 message (wanted 'No such container')
+          []
+          Error: No such object: nope-xyz
+  pass  409 message
+== resource limits (cgroup v2 now delegated) ==
+  pass  memory limit enforced
+  pass  pids limit enforced
+  pass  cpu limit accepted
+== isolation ==
+  pass  own pid namespace
+  pass  seccomp blocks mount
+  pass  read-only rootfs
+== networking ==
+  pass  published port
+  pass  dns by container name
+
+RESULT: 17 passed, 1 failed

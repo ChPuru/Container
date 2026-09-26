@@ -8,16 +8,16 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // newRunCommand builds "hull run".
 func newRunCommand() *Command {
 	o := &runOptions{}
 	return &Command{
-		Name:          "run",
-		Usage:         "run [OPTIONS] IMAGE [COMMAND] [ARG...]",
-		Short:         "Create and run a new container from an image",
+		Name:  "run",
+		Usage: "run [OPTIONS] IMAGE [COMMAND] [ARG...]",
+		Short: "Create and run a new container from an image",
 		Long: "Create and run a new container from an image.\n\n" +
 			"The image is pulled when it is not present locally, unless --pull=never.\n" +
 			"With -it the local terminal is put into raw mode and restored on every\n" +

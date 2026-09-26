@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 func TestValidID(t *testing.T) {

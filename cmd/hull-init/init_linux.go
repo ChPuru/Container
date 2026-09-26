@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/runtime/initspec"
+	"github.com/ChPuru/hull/internal/runtime/initspec"
 )
 
 // runInit is the container stage. It runs as the freshly cloned child, inside

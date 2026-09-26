@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/cli"
+	"github.com/ChPuru/hull/internal/cli"
 )
 
 // installEngineController gives "hull engine start|stop|restart" something to

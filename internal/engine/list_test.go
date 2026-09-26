@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/idutil"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/idutil"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // putContainer writes a container record straight into the store, so a listing

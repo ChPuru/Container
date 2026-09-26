@@ -6,10 +6,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/engine"
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/types"
-	"github.com/rahuldhali/hull/internal/version"
+	"github.com/ChPuru/hull/internal/engine"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/types"
+	"github.com/ChPuru/hull/internal/version"
 )
 
 // pingHeaders sets the headers every client reads before it does anything

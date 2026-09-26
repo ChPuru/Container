@@ -7,10 +7,10 @@ import (
 	"io"
 	"sync"
 
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/logbuf"
-	"github.com/rahuldhali/hull/internal/shim"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/logbuf"
+	"github.com/ChPuru/hull/internal/shim"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // Attach connects a client's streams to a running container.

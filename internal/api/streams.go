@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/engine"
-	"github.com/rahuldhali/hull/internal/logbuf"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/engine"
+	"github.com/ChPuru/hull/internal/logbuf"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // version1_42 is where Docker started labelling a framed stream with its own
@@ -194,6 +194,19 @@ func (s *Server) postContainerAttach(w http.ResponseWriter, r *http.Request) err
 		c = started
 	}
 
+	// A short-lived container is the normal case, not an edge case: by the time
+	// anyone notices `echo hello` has started, it has already exited. A live
+	// attach then fails with "container is not running" and the client is left
+	// with an empty stream, which is what made every `hull run` and `docker run`
+	// of a fast command produce no output.
+	//
+	// What the client actually wants is the output, so replay the log instead.
+	// The framing is the same either way, so it is indistinguishable from having
+	// been attached the whole time.
+	if c.State == types.StateExited || c.State == types.StateDead {
+		return s.replayLog(r.Context(), brw, c, useStdout, useStderr)
+	}
+
 	cfg := engine.AttachConfig{
 		UseStdin:   useStdin,
 		UseStdout:  useStdout,
@@ -213,7 +226,23 @@ func (s *Server) postContainerAttach(w http.ResponseWriter, r *http.Request) err
 		cfg.Stderr = out
 	}
 
+	// The container can still exit between the state check above and the
+	// attach reaching its supervisor; the attach then fails before a single
+	// byte is streamed. Started tells the two cases apart: if the attachment
+	// never went live, nothing has been sent, so the log can be replayed
+	// without duplicating anything.
+	started := make(chan struct{})
+	cfg.Started = started
 	if err := s.backend.Attach(r.Context(), id, cfg); err != nil && r.Context().Err() == nil {
+		select {
+		case <-started:
+		default:
+			if now := s.exitedAfterLostAttach(r.Context(), id, err); now != nil && !cfg.Logs {
+				_ = s.replayLog(r.Context(), brw, now, useStdout, useStderr)
+				_ = closeWrite(conn)
+				return nil
+			}
+		}
 		s.log.Debug("hull: attach ended", "container", id, "err", err)
 	}
 	_ = brw.Flush()

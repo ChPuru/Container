@@ -1,0 +1,12 @@
+# Captured 2026-09-26 on a Windows 11 laptop (i7-13650HX), WSL2 Ubuntu, kernel 5.15.167.4-microsoft-standard-WSL2, Go 1.26.8, run as root.
+# Command: go test -run '^$' -bench . -benchmem -count=3 ./internal/idutil/
+
+goos: linux
+goarch: amd64
+pkg: github.com/ChPuru/hull/internal/idutil
+cpu: 13th Gen Intel(R) Core(TM) i7-13650HX
+BenchmarkNewID-20    	 4047592	       287.5 ns/op	     160 B/op	       3 allocs/op
+BenchmarkNewID-20    	 4290068	       330.3 ns/op	     160 B/op	       3 allocs/op
+BenchmarkNewID-20    	 3848433	       309.2 ns/op	     160 B/op	       3 allocs/op
+PASS
+ok  	github.com/ChPuru/hull/internal/idutil	4.686s

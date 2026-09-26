@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // msgKind tags a message on the single channel the render loop consumes.

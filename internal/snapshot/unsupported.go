@@ -5,8 +5,8 @@ package snapshot
 import (
 	"context"
 
-	"github.com/rahuldhali/hull/internal/content"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/content"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // This file keeps the package's API identical on every GOOS so the Windows

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/rahuldhali/hull/internal/fsutil"
+	"github.com/ChPuru/hull/internal/fsutil"
 )
 
 const (

@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/cli"
-	"github.com/rahuldhali/hull/internal/wslbridge"
+	"github.com/ChPuru/hull/internal/cli"
+	"github.com/ChPuru/hull/internal/wslbridge"
 )
 
 // installEngineController gives "hull engine start|stop|restart" something to

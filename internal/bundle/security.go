@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/explain"
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
-	"github.com/rahuldhali/hull/internal/seccompprof"
+	"github.com/ChPuru/hull/internal/explain"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/seccompprof"
 )
 
 // ---------- capabilities ----------

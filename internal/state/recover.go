@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // DisappearedProcessError is the Container.Error text hull records for a

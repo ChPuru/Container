@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // TestRecoverFlipsStaleRunningContainers is the core crash-recovery case: the

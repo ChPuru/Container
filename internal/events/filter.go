@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // minIDPrefix is the shortest id prefix a container/image/network/volume

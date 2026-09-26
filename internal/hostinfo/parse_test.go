@@ -459,7 +459,7 @@ func TestParseProcNetRouteMalformed(t *testing.T) {
 func TestParseSubIDRange(t *testing.T) {
 	const golden = `# a comment
 lenovo:100000:65536
-rahul:165536:65536
+puru:165536:65536
 nobody:0:0
 `
 	tests := []struct {
@@ -468,7 +468,7 @@ nobody:0:0
 		want string
 	}{
 		{"first entry", "lenovo", "100000:65536"},
-		{"second entry", "rahul", "165536:65536"},
+		{"second entry", "puru", "165536:65536"},
 		{"zero range is still an entry", "nobody", "0:0"},
 		{"absent user", "root", ""},
 		{"comment is not a user", "#", ""},

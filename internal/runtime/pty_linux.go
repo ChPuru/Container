@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/runtime/initspec"
+	"github.com/ChPuru/hull/internal/runtime/initspec"
 )
 
 // openPTY allocates a UNIX98 pseudo-terminal pair and returns the master and

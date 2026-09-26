@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/content"
-	"github.com/rahuldhali/hull/internal/oci/imagespec"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/content"
+	"github.com/ChPuru/hull/internal/oci/imagespec"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 func linux(arch string) types.Platform { return types.Platform{OS: "linux", Architecture: arch} }

@@ -12,8 +12,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/cgroups"
-	"github.com/rahuldhali/hull/internal/runtime/initspec"
+	"github.com/ChPuru/hull/internal/cgroups"
+	"github.com/ChPuru/hull/internal/runtime/initspec"
 )
 
 // Syscall numbers hull probes for directly. They are spelled out rather than

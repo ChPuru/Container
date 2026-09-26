@@ -4,7 +4,7 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // newVolumeCommand builds the "hull volume" group.

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // fakeClient is a Client that answers from fixed data and records what was

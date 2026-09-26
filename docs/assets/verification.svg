@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="747" viewBox="0 0 820 747">
+<rect width="100%" height="100%" rx="8" fill="#0d1117"/>
+<circle cx="18" cy="16" r="5" fill="#ff5f56"/><circle cx="34" cy="16" r="5" fill="#ffbd2e"/><circle cx="50" cy="16" r="5" fill="#27c93f"/>
+<text x="70" y="20" fill="#8b949e" font-family="monospace" font-size="12">hull verification run (2026-09-26, WSL2)</text>
+<g font-family="Consolas,Menlo,monospace" font-size="13">
+<text x="16" y="44" fill="#79c0ff" xml:space="preserve">$ time hull run --rm alpine:3.20 echo hello from hull</text>
+<text x="16" y="61" fill="#c9d1d9" xml:space="preserve">hello from hull</text>
+<text x="16" y="78" fill="#c9d1d9" xml:space="preserve">real 0m4.286s</text>
+<text x="16" y="95" fill="#79c0ff" xml:space="preserve">$ time hull run --rm alpine:3.20 echo warm start</text>
+<text x="16" y="112" fill="#c9d1d9" xml:space="preserve">warm start</text>
+<text x="16" y="129" fill="#c9d1d9" xml:space="preserve">real 0m0.484s</text>
+<text x="16" y="146" fill="#79c0ff" xml:space="preserve">$ hull images</text>
+<text x="16" y="163" fill="#c9d1d9" xml:space="preserve">REPOSITORY   TAG    IMAGE ID       CREATED        SIZE</text>
+<text x="16" y="180" fill="#c9d1d9" xml:space="preserve">alpine       3.20   bf8527eb54c3   5 months ago   3.63MB</text>
+<text x="16" y="197" fill="#79c0ff" xml:space="preserve">$ docker version --format ...</text>
+<text x="16" y="214" fill="#c9d1d9" xml:space="preserve">client 28.4.0 -&gt; server 28.4.0 (API 1.43)</text>
+<text x="16" y="231" fill="#79c0ff" xml:space="preserve">$ time docker run --rm alpine:3.20 uname -a</text>
+<text x="16" y="248" fill="#c9d1d9" xml:space="preserve">Linux 60cb4d6f2c87 5.15.167.4-microsoft-standard-WSL2 #1 SMP Tue Nov 5 00:21:55 UTC 2024 x86_64 Linux</text>
+<text x="16" y="265" fill="#c9d1d9" xml:space="preserve">real 0m2.294s</text>
+<text x="16" y="282" fill="#d2a8ff" xml:space="preserve">== verification checks ==</text>
+<text x="16" y="299" fill="#d2a8ff" xml:space="preserve">== hull CLI ==</text>
+<text x="16" y="316" fill="#3fb950" xml:space="preserve">  pass  hull version</text>
+<text x="16" y="333" fill="#3fb950" xml:space="preserve">  pass  hull run</text>
+<text x="16" y="350" fill="#3fb950" xml:space="preserve">  pass  hull ps -a</text>
+<text x="16" y="367" fill="#d2a8ff" xml:space="preserve">== docker CLI ==</text>
+<text x="16" y="384" fill="#3fb950" xml:space="preserve">  pass  docker version</text>
+<text x="16" y="401" fill="#3fb950" xml:space="preserve">  pass  docker run attached</text>
+<text x="16" y="418" fill="#3fb950" xml:space="preserve">  pass  docker inspect slash</text>
+<text x="16" y="435" fill="#3fb950" xml:space="preserve">  pass  docker exec</text>
+<text x="16" y="452" fill="#3fb950" xml:space="preserve">  pass  docker logs</text>
+<text x="16" y="469" fill="#f85149" xml:space="preserve">  FAIL  404 message (wanted &#x27;No such container&#x27;)</text>
+<text x="16" y="486" fill="#c9d1d9" xml:space="preserve">          []</text>
+<text x="16" y="503" fill="#c9d1d9" xml:space="preserve">          Error: No such object: nope-xyz</text>
+<text x="16" y="520" fill="#3fb950" xml:space="preserve">  pass  409 message</text>
+<text x="16" y="537" fill="#d2a8ff" xml:space="preserve">== resource limits (cgroup v2 now delegated) ==</text>
+<text x="16" y="554" fill="#3fb950" xml:space="preserve">  pass  memory limit enforced</text>
+<text x="16" y="571" fill="#3fb950" xml:space="preserve">  pass  pids limit enforced</text>
+<text x="16" y="588" fill="#3fb950" xml:space="preserve">  pass  cpu limit accepted</text>
+<text x="16" y="605" fill="#d2a8ff" xml:space="preserve">== isolation ==</text>
+<text x="16" y="622" fill="#3fb950" xml:space="preserve">  pass  own pid namespace</text>
+<text x="16" y="639" fill="#3fb950" xml:space="preserve">  pass  seccomp blocks mount</text>
+<text x="16" y="656" fill="#3fb950" xml:space="preserve">  pass  read-only rootfs</text>
+<text x="16" y="673" fill="#d2a8ff" xml:space="preserve">== networking ==</text>
+<text x="16" y="690" fill="#3fb950" xml:space="preserve">  pass  published port</text>
+<text x="16" y="707" fill="#3fb950" xml:space="preserve">  pass  dns by container name</text>
+<text x="16" y="724" fill="#e3b341" xml:space="preserve">RESULT: 17 passed, 1 failed</text>
+</g></svg>

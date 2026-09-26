@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // newPsCommand builds "hull ps".
@@ -96,19 +96,19 @@ func newPsCommand() *Command {
 // the rendered columns as well as the raw fields, so both
 // "{{.Status}}" and "{{.State}}" do what a reader expects.
 type psRow struct {
-	ID        string            `json:"ID"`
-	Image     string            `json:"Image"`
-	Command   string            `json:"Command"`
-	CreatedAt string            `json:"CreatedAt"`
-	RunningFor string           `json:"RunningFor"`
-	Status    string            `json:"Status"`
-	State     string            `json:"State"`
-	Ports     string            `json:"Ports"`
-	Names     string            `json:"Names"`
-	Labels    map[string]string `json:"Labels,omitempty"`
-	Size      string            `json:"Size,omitempty"`
-	Mounts    string            `json:"Mounts,omitempty"`
-	Networks  string            `json:"Networks,omitempty"`
+	ID         string            `json:"ID"`
+	Image      string            `json:"Image"`
+	Command    string            `json:"Command"`
+	CreatedAt  string            `json:"CreatedAt"`
+	RunningFor string            `json:"RunningFor"`
+	Status     string            `json:"Status"`
+	State      string            `json:"State"`
+	Ports      string            `json:"Ports"`
+	Names      string            `json:"Names"`
+	Labels     map[string]string `json:"Labels,omitempty"`
+	Size       string            `json:"Size,omitempty"`
+	Mounts     string            `json:"Mounts,omitempty"`
+	Networks   string            `json:"Networks,omitempty"`
 }
 
 // psItem builds one template row from a listing entry.

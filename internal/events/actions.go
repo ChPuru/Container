@@ -1,6 +1,6 @@
 package events
 
-import "github.com/rahuldhali/hull/internal/types"
+import "github.com/ChPuru/hull/internal/types"
 
 // Event scopes. hull is a single-node engine, so every event is local.
 const (

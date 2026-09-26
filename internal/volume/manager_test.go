@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/state"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/state"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 var hex64RE = regexp.MustCompile(`^[0-9a-f]{64}$`)

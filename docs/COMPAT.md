@@ -4,7 +4,7 @@ hull serves Docker Engine API **v1.43** (accepting down to v1.24) so the stock `
 `docker compose`, VS Code Dev Containers and Testcontainers work against it unchanged. This is
 the conformance checklist: what must work, and the specific behaviours that clients break on.
 
-Run the harness with `make e2e` once `test/conformance/` lands. Until then this is the spec.
+Run the harness with `test/conformance/smoke.sh` (stock `docker` CLI) and `test/conformance/hull-smoke.sh` (hull's own CLI) against a running daemon.
 
 ## Tier 1 — nothing works without these
 
@@ -88,9 +88,9 @@ These are the ones that look fine in a curl test and then fail against a real cl
 
 ## Gaps found by running it
 
-These are real and open, each with an owner. None of them breaks a client outright.
+These are real and open, each with the place the fix belongs. None of them breaks a client outright.
 
-| Gap | Effect | Owner |
+| Gap | Effect | Where the fix goes |
 |---|---|---|
 | `X-Registry-Auth` is decoded and validated, then dropped | a private-registry pull falls back to the daemon's own keychain instead of the caller's credentials | `engine.Pull`/`Push` need a credentials parameter |
 | `?size=1` reports `SizeRw`/`SizeRootFs` as 0 | fields are present and correctly typed, so nothing breaks; the numbers are just not computed | `engine.List` ignores `ListOptions.Size` |

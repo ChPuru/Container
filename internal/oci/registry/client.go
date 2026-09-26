@@ -32,7 +32,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/oci/reference"
+	"github.com/ChPuru/hull/internal/oci/reference"
 )
 
 // Defaults applied by NewClient when Options leaves a field zero.
@@ -40,7 +40,7 @@ const (
 	// DefaultConcurrency is how many layer downloads run at once.
 	DefaultConcurrency = 3
 	// DefaultUserAgent identifies hull to registries.
-	DefaultUserAgent = "hull/1.0 (+https://github.com/rahuldhali/hull)"
+	DefaultUserAgent = "hull/1.0 (+https://github.com/ChPuru/hull)"
 	// DockerHubEndpoint is the host that actually serves the Docker Hub
 	// distribution API; docker.io itself does not.
 	DockerHubEndpoint = "registry-1.docker.io"

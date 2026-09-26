@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // ellipsis is the single rune used to mark truncated text. One rune rather

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 func TestTranslateWindowsPath(t *testing.T) {

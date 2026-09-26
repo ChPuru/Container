@@ -1,7 +1,7 @@
 # Integration notes
 
 Things found by actually running the code, that no unit test caught. Each one is either fixed
-or has a named owner.
+or names the code that has to change.
 
 ## 1. `ociVersion` must be negotiated, not asserted — FIXED
 
@@ -222,3 +222,23 @@ a sibling `hull doctor --kconfig`. Owner: `internal/cli`, with a marshalling twe
 
 `hull0` shows operstate `DOWN` with the `UP` flag set until the first veth is attached. That is
 normal Linux behaviour, but `hull doctor` and the TUI must not report it as a fault.
+
+## 8. `docker run` deadlocked on `/wait`, and fast containers lost their output — FIXED
+
+Two bugs in the attach path, both invisible to unit tests because they need the real `docker`
+CLI's request ordering.
+
+- `docker run` sends `POST /containers/{id}/wait` *before* it starts the container, and does not
+  call start until that request's response headers arrive. hull held the headers until the
+  container exited, so the container stayed in `created` forever and `docker run` hung. The
+  handler now resolves the container (so a missing one is still a 404), flushes `200 OK`
+  immediately, and writes the result into the body afterwards, which is what moby does.
+- A container like `echo hello` can exit between the attach handler's state check and the attach
+  reaching the shim. The attach then failed with `shim: container is not running` before a byte
+  was streamed, and the client printed nothing. When an attach fails before going live, the
+  handler now waits (bounded) for the engine to record the exit and replays the log with the
+  same framing.
+
+Verified with the stock docker 28.4.0 CLI: `docker run --rm alpine echo ...` prints its output,
+and 17 of 18 end-to-end checks pass (the remaining one expects a message string the Docker CLI
+does not print for an untyped `inspect`).

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // ParsePublish expands one -p/--publish spec into exposed ports and host

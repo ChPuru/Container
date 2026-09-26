@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // Mount types, matching the strings Docker puts on the wire.

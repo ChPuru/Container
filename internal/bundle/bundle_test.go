@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // newTestContainer is a plausible `docker run -d --name web alpine` record with

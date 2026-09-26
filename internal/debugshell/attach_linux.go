@@ -15,8 +15,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rahuldhali/hull/internal/explain"
-	"github.com/rahuldhali/hull/internal/runtime/initspec"
+	"github.com/ChPuru/hull/internal/explain"
+	"github.com/ChPuru/hull/internal/runtime/initspec"
 )
 
 // ExitError reports that the debug session's command finished with a non-zero

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io/fs"
 
-	"github.com/rahuldhali/hull/internal/oci/reference"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/oci/reference"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // ErrNotFound is how a Resolver says a reference is not in the registry: the

@@ -7,11 +7,11 @@ import (
 	"io/fs"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/shim"
-	"github.com/rahuldhali/hull/internal/snapshot"
-	"github.com/rahuldhali/hull/internal/state"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/shim"
+	"github.com/ChPuru/hull/internal/snapshot"
+	"github.com/ChPuru/hull/internal/state"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // recover reconciles the persisted state with reality.

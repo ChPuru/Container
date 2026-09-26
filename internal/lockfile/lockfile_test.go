@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 func amd64() types.Platform { return types.Platform{OS: "linux", Architecture: "amd64"} }

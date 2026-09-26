@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/capabilities"
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/capabilities"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 // SecurityOptions is the parsed form of a container's --security-opt list.

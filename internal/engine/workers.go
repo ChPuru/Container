@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/shim"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/shim"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // Health status values, matching Docker's vocabulary.

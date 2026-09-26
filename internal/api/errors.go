@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/engine"
-	"github.com/rahuldhali/hull/internal/events"
-	"github.com/rahuldhali/hull/internal/volume"
+	"github.com/ChPuru/hull/internal/engine"
+	"github.com/ChPuru/hull/internal/events"
+	"github.com/ChPuru/hull/internal/volume"
 )
 
 // statusError carries an HTTP status alongside a message, so a handler can say

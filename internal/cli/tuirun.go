@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/client"
-	"github.com/rahuldhali/hull/internal/tui"
+	"github.com/ChPuru/hull/internal/client"
+	"github.com/ChPuru/hull/internal/tui"
 )
 
 // runDashboard opens the terminal dashboard against one engine.

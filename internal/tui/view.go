@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // Render draws the whole dashboard into b, which must be the size the model

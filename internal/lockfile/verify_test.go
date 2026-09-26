@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // fakeResolver answers from a fixed map of reference string to manifest digest.

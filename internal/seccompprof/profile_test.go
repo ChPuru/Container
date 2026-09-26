@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rahuldhali/hull/internal/oci/runtimespec"
+	"github.com/ChPuru/hull/internal/oci/runtimespec"
 )
 
 func TestDefaultShape(t *testing.T) {

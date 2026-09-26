@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rahuldhali/hull/internal/fsutil"
-	"github.com/rahuldhali/hull/internal/snapshot"
-	"github.com/rahuldhali/hull/internal/types"
+	"github.com/ChPuru/hull/internal/fsutil"
+	"github.com/ChPuru/hull/internal/snapshot"
+	"github.com/ChPuru/hull/internal/types"
 )
 
 // Snapshot captures a running container's writable layer under a name.

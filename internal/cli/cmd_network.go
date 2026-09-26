@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/rahuldhali/hull/internal/client"
+	"github.com/ChPuru/hull/internal/client"
 )
 
 // newNetworkCommand builds the "hull network" group.
